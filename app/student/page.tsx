@@ -160,10 +160,18 @@ export default function StudentPage() {
                   </SelectContent>
                 </Select>
 
-                <Button className="gap-2 w-full sm:w-auto bg-[#800000] text-[#FFD700] hover:bg-[#660000]">
-                  <FileText size={16} />
-                  Borrower Slip
-                </Button>
+                <Button
+                onClick={() => {
+                  setLoading(true);           // Show loader
+                  router.push("student/borrower-slip");
+                }}
+                className="gap-2 w-full sm:w-auto bg-[#800000] text-[#FFD700] hover:bg-[#660000]"
+              >
+                <FileText size={16} />
+                Borrower Slip
+              </Button>
+
+
               </div>
             </div>
           </CardContent>

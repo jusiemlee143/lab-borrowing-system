@@ -2,7 +2,8 @@
 
 import Image from "next/image"
 import Link from "next/link"
-import { Menu } from "lucide-react"
+import { useState } from "react"
+import { Menu, Loader2 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
@@ -11,12 +12,19 @@ import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
 
 export default function LandingPage() {
+  const [loading, setLoading] = useState(false)
+
+  const handleClick = () => {
+    setLoading(true)
+    // navigation happens automatically via Link
+  }
+
   return (
     <div className="min-h-screen bg-[#fffaf8] flex">
       {/* ✅ DESKTOP SIDEBAR */}
       <aside className="hidden md:flex w-64 bg-[#800000] text-[#FFD700] flex-col fixed h-full shadow-xl">
         <LogoSection />
-        <SidebarMenu />
+        <SidebarMenu loading={loading} setLoading={setLoading} />
       </aside>
 
       {/* ✅ MOBILE SIDEBAR (SHADCN SHEET) */}
@@ -29,7 +37,7 @@ export default function LandingPage() {
           </SheetTrigger>
           <SheetContent side="left" className="p-0 bg-[#800000] text-[#FFD700]">
             <LogoSection />
-            <SidebarMenu />
+            <SidebarMenu loading={loading} setLoading={setLoading} />
           </SheetContent>
         </Sheet>
       </div>
@@ -53,17 +61,27 @@ export default function LandingPage() {
 
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Link href="/student">
-            <Button className="bg-[#800000] hover:bg-[#660000] w-full sm:w-auto">
-            Student
-            </Button>
+              <Button
+                onClick={handleClick}
+                className="bg-[#800000] hover:bg-[#660000] w-full sm:w-auto"
+                disabled={loading}
+              >
+                {loading && <Loader2 className="animate-spin mr-2 h-4 w-4" />}
+                Student
+              </Button>
             </Link>
 
-            <Button
-              variant="outline"
-              className="border-[#800000] text-[#800000]"
-            >
-              Lab-in-Charge
-            </Button>
+            <Link href="/lab-in-charge">
+              <Button
+                onClick={handleClick}
+                variant="outline"
+                className="border-[#800000] text-[#800000] w-full sm:w-auto"
+                disabled={loading}
+              >
+                {loading && <Loader2 className="animate-spin mr-2 h-4 w-4" />}
+                Lab-in-Charge
+              </Button>
+            </Link>
           </div>
         </section>
 
@@ -105,15 +123,17 @@ function LogoSection() {
   )
 }
 
-function SidebarMenu() {
+function SidebarMenu({ loading, setLoading }: { loading: boolean; setLoading: (v: boolean) => void }) {
   const menu = [
-    { name: "Student", href: "#" },
-    { name: "Lab-in-Charge", href: "#" },
+    { name: "Student", href: "/student" },
+    { name: "Lab-in-Charge", href: "/lab-in-charge" },
     { name: "Help", href: "#" },
     { name: "Rate Us", href: "#" },
     { name: "About", href: "#" },
     { name: "Contact", href: "#" },
   ]
+
+  const handleMenuClick = () => setLoading(true)
 
   return (
     <nav className="flex-1 flex flex-col mt-6 px-3 gap-1">
@@ -121,6 +141,7 @@ function SidebarMenu() {
         <Link
           key={item.name}
           href={item.href}
+          onClick={handleMenuClick}
           className="px-4 py-2 rounded-lg font-medium hover:bg-[#FFD700] hover:text-[#800000] transition"
         >
           {item.name}

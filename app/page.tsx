@@ -127,10 +127,10 @@ function SidebarMenu({ loading, setLoading }: { loading: boolean; setLoading: (v
   const menu = [
     { name: "Student", href: "/student" },
     { name: "Lab-in-Charge", href: "/lab-in-charge" },
-    { name: "Help", href: "#" },
+    { name: "Help", href: "/help" },
     { name: "Rate Us", href: "#" },
     { name: "About", href: "#" },
-    { name: "Contact", href: "#" },
+    { name: "Contact", href: "/contact" },
   ]
 
   const handleMenuClick = () => setLoading(true)

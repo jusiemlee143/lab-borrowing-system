@@ -14,21 +14,40 @@ export default function AdminLoginPage() {
   const [showPassword, setShowPassword] = useState(false)
   const [loading, setLoading] = useState(false)
 
-  // Mock admin credentials
-  const adminCredentials = { email: "admin@gmail.com", password: "admin123" }
+  
 
-  const handleLogin = () => {
-    if (email === adminCredentials.email && password === adminCredentials.password) {
-      setLoading(true)
-      setTimeout(() => {
-        toast.success("Welcome, Admin!")
-        router.push("/admin/dashboard")
-        setLoading(false)
-      }, 800)
+  const handleLogin = async () => {
+  setLoading(true);
+  try {
+    const res = await fetch("/api/auth/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, password }),
+    });
+
+    const data = await res.json();
+
+    if (res.ok) {
+      toast.success(`Welcome, ${data.role.toUpperCase()}!`);
+
+      // Store JWT token
+      localStorage.setItem("token", data.token);
+
+      // Redirect based on role
+      if (data.role === "admin") router.push("/admin/dashboard");
+      else if (data.role === "lic") router.push("/lic/dashboard");
     } else {
-      toast.error("Invalid email or password")
+      toast.error(data.message || "Invalid credentials");
     }
+  } catch (err) {
+    console.error(err);
+    toast.error("Server error");
+  } finally {
+    setLoading(false);
   }
+};
+
+
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-[#fffaf8] px-4">

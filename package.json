@@ -2,6 +2,7 @@
   "name": "lab-borrowing-system",
   "version": "0.1.0",
   "private": true,
+  "type": "module",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
@@ -24,6 +25,7 @@
     "mongodb": "^7.1.0",
     "mongoose": "^9.2.1",
     "next": "16.1.6",
+    "nodemailer": "^8.0.1",
     "react": "19.2.3",
     "react-dom": "19.2.3",
     "sonner": "^2.0.7",

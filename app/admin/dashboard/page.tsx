@@ -10,6 +10,8 @@ import Image from "next/image"
 
 export default function AdminDashboard() {
   const [step, setStep] = useState<1 | 2 | 3>(1)
+  const [loading, setLoading] = useState(false);
+
 
   // Step 1: Personal Info
   const [fullName, setFullName] = useState("")
@@ -57,33 +59,57 @@ export default function AdminDashboard() {
     setStep(3)
   }
 
-  // Handle account creation
-  const handleCreateAccount = () => {
-    const newAccount = {
-      fullName,
-      employeeId,
-      department,
-      contactNumber,
-      email,
-      password: tempPassword,
-      profilePic,
-      preview,
-    }
-
-    setLabAccounts([...labAccounts, newAccount])
-    toast.success(`Lab-in-Charge account created for ${fullName}`)
-
-    // Reset all fields
-    setFullName("")
-    setEmployeeId("")
-    setDepartment("")
-    setContactNumber("")
-    setProfilePic(null)
-    setPreview(null)
-    setEmail("")
-    setTempPassword("")
-    setStep(1)
+  const handleCreateAccount = async () => {
+  if (!fullName || !employeeId || !department || !contactNumber || !email || !tempPassword) {
+    toast.error("All fields are required");
+    return;
   }
+
+  try {
+    setLoading(true);
+
+    const res = await fetch("/api/admin/create-lic", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        fullName,
+        employeeId,
+        department,
+        contactNumber,  
+        email,
+        tempPassword,
+      }),
+    });
+
+    const data = await res.json();
+
+    if (res.ok) {
+      toast.success(data.message);
+
+      // Add to local state (for frontend display)
+      setLabAccounts([...labAccounts, { fullName, employeeId, department, contactNumber, email, preview, profilePic }]);
+
+      // Reset form
+      setFullName("");
+      setEmployeeId("");
+      setDepartment("");
+      setContactNumber("");
+      setProfilePic(null);
+      setPreview(null);
+      setEmail("");
+      setTempPassword("");
+      setStep(1);
+    } else {
+      toast.error(data.message || "Failed to create account");
+    }
+  } catch (err) {
+    console.error(err);
+    toast.error("Server error");
+  } finally {
+    setLoading(false);
+  }
+};
+
 
   const handleProfilePic = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]

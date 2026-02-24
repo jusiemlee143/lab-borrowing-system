@@ -1,5 +1,6 @@
 "use client"
 
+import React from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field"
@@ -14,12 +15,23 @@ export default function LoginForm({
   className,
   onSubmit,
 }: LoginFormProps) {
+
+  // ✅ Safe submit handler (prevents undefined crash)
+  const handleFormSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+    if (onSubmit) {
+      onSubmit(e)
+    } else {
+      e.preventDefault()
+      console.warn("LoginForm submitted but no onSubmit provided.")
+    }
+  }
+
   return (
     <section className={`flex-1 w-full flex items-center justify-center ${className ?? ""}`}>
       <div className="w-full max-w-md px-6">
         <Card className="w-full">
           <CardContent className="p-8">
-            <form className="space-y-6" onSubmit={onSubmit}>
+            <form className="space-y-6" onSubmit={handleFormSubmit}>
               <div className="text-center space-y-2">
                 <h1 className="text-2xl font-bold text-[#800000]">
                   Welcome back
@@ -32,12 +44,22 @@ export default function LoginForm({
               <FieldGroup className="space-y-4">
                 <Field>
                   <FieldLabel htmlFor="email">Email</FieldLabel>
-                  <Input id="email" name="email" type="email" required />
+                  <Input
+                    id="email"
+                    name="email"   // ✅ REQUIRED for FormData
+                    type="email"
+                    required
+                  />
                 </Field>
 
                 <Field>
                   <FieldLabel htmlFor="password">Password</FieldLabel>
-                  <Input id="password" name="password" type="password" required />
+                  <Input
+                    id="password"
+                    name="password"  // ✅ REQUIRED for FormData
+                    type="password"
+                    required
+                  />
                 </Field>
 
                 <Field>

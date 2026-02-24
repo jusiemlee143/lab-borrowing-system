@@ -14,9 +14,15 @@ export default function LoginPage() {
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+
     const formData = new FormData(e.currentTarget);
-    const email = formData.get("email");
-    const password = formData.get("password");
+    const email = formData.get("email")?.toString().trim();
+    const password = formData.get("password")?.toString().trim();
+
+    if (!email || !password) {
+      alert("Please enter email and password");
+      return;
+    }
 
     try {
       const res = await fetch("/api/auth/lic-login", {
@@ -26,23 +32,36 @@ export default function LoginPage() {
       });
 
       const data = await res.json();
+      console.log("LOGIN RESPONSE:", data);
 
       if (!res.ok) {
-        alert(data.message || "Login failed");
+        alert(data?.message || "Login failed");
         return;
       }
 
-      // ✅ Store user in localStorage
-      localStorage.setItem("licUser", JSON.stringify(data.user));
+      // 🛡️ safety check
+      if (!data) {
+        alert("Invalid server response");
+        return;
+      }
 
-      // ✅ Force change password if required
-      if (data.user.mustChangePassword) {
+      const user = {
+        userId: data.userId,
+        fullName: data.fullName,
+        email: data.email,
+        mustChangePassword: data.mustChangePassword,
+      };
+
+      localStorage.setItem("licUser", JSON.stringify(user));
+
+      // ✅ redirect logic
+      if (user.mustChangePassword) {
         router.push("/lab-in-charge/change-password");
       } else {
         router.push("/lab-in-charge/dashboard");
       }
     } catch (err) {
-      console.error(err);
+      console.error("LOGIN ERROR:", err);
       alert("Server error");
     }
   };
@@ -69,6 +88,7 @@ export default function LoginPage() {
         </Button>
       </header>
 
+      {/* ✅ IMPORTANT */}
       <LoginForm onSubmit={handleSubmit} />
     </div>
   );

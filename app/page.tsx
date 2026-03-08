@@ -128,8 +128,8 @@ function SidebarMenu({ loading, setLoading }: { loading: boolean; setLoading: (v
     { name: "Student", href: "/student" },
     { name: "Lab-in-Charge", href: "/lab-in-charge" },
     { name: "Help", href: "/help" },
-    { name: "Rate Us", href: "#" },
-    { name: "About", href: "#" },
+    { name: "Rate Us", href: "/rate-us" },
+    { name: "About", href: "/about" },
     { name: "Contact", href: "/contact" },
   ]
 

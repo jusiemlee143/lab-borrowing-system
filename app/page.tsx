@@ -89,18 +89,27 @@ export default function LandingPage() {
 
         {/* FEATURES */}
         <section className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-          <FeatureCard
-            title="Help"
-            desc="Access guides and FAQs to navigate the system smoothly."
-          />
-          <FeatureCard
-            title="Rate Us"
-            desc="Provide feedback about the lab borrowing system."
-          />
-          <FeatureCard
-            title="Contact"
-            desc="Reach out for support or inquiries anytime."
-          />
+          {/* Added Links to cards */}
+          <Link href="/help" onClick={handleClick} className="block h-full">
+            <FeatureCard
+              title="Help"
+              desc="Access guides and FAQs to navigate the system smoothly."
+            />
+          </Link>
+
+          <Link href="/rate-us" onClick={handleClick} className="block h-full">
+            <FeatureCard
+              title="Rate Us"
+              desc="Provide feedback about the lab borrowing system."
+            />
+          </Link>
+
+          <Link href="/contact" onClick={handleClick} className="block h-full">
+            <FeatureCard
+              title="Contact"
+              desc="Reach out for support or inquiries anytime."
+            />
+          </Link>
         </section>
       </main>
     </div>
@@ -159,8 +168,9 @@ function FeatureCard({
   desc: string
 }) {
   return (
-    <Card className="rounded-2xl border shadow-sm hover:shadow-xl transition duration-300">
-      <CardContent className="p-6 text-center">
+    // Added cursor-pointer for better UX
+    <Card className="h-full rounded-2xl border shadow-sm hover:shadow-xl transition duration-300 cursor-pointer">
+      <CardContent className="p-6 text-center h-full flex flex-col justify-center">
         <h3 className="font-bold text-[#800000] text-lg mb-2">
           {title}
         </h3>

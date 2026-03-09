@@ -152,6 +152,12 @@ export default function HelpPage() {
           {helpTopics.map((topic, index) => (
             <Card 
               key={index} 
+              // ADDED LOGIC HERE: Check if title is "Contact Support" and navigate
+              onClick={() => {
+                if (topic.title === "Contact Support") {
+                  router.push("/contact")
+                }
+              }}
               className="group hover:shadow-lg transition-shadow duration-300 cursor-pointer border-l-4 border-[#800000]"
             >
               <CardContent className="p-6 flex items-start gap-4">

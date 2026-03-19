@@ -89,7 +89,7 @@ export default function ChangePasswordPage() {
 
       localStorage.setItem("licUser", JSON.stringify(updatedUser));
 
-      router.push("/lab-in-charge/dashboard");
+      router.push("/lab-in-charge");
     } catch (err) {
       console.error("CHANGE PASSWORD ERROR:", err);
       setLoading(false);

@@ -1,53 +1,72 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
-import { useRouter } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
 import { Eye, EyeOff } from "lucide-react"
 import { Toaster, toast } from "sonner"
 
 export default function AdminLoginPage() {
   const router = useRouter()
+  const searchParams = useSearchParams()
+
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [showPassword, setShowPassword] = useState(false)
   const [loading, setLoading] = useState(false)
 
-  
+  // ✅ SHOW NOTIFICATION FROM PROXY
+  useEffect(() => {
+  if (!searchParams) return; // ✅ fix
+
+  const error = searchParams.get("error");
+  const from = searchParams.get("from");
+
+  if (error === "login-required") {
+    let page = "this page";
+
+    if (from?.includes("admin")) page = "Admin Dashboard";
+    if (from?.includes("lab-in-charge")) page = "Lab-In-Charge Dashboard";
+
+    toast.error(`You must login first to access the ${page}`);
+  }
+
+  if (error === "session-expired") {
+    toast.error("Session expired. Please login again");
+  }
+}, [searchParams]);
 
   const handleLogin = async () => {
-  setLoading(true);
-  try {
-    const res = await fetch("/api/auth/login", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email, password }),
-    });
+    setLoading(true)
+    try {
+      const res = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password }),
+      })
 
-    const data = await res.json();
+      const data = await res.json()
 
-    if (res.ok) {
-      toast.success(`Welcome, ${data.role.toUpperCase()}!`);
+      if (res.ok) {
+        toast.success(`Welcome, ${data.role.toUpperCase()}!`)
 
-      // Store JWT token
-      localStorage.setItem("token", data.token);
-
-      // Redirect based on role
-      if (data.role === "admin") router.push("/admin/dashboard");
-      else if (data.role === "lic") router.push("/lic/dashboard");
-    } else {
-      toast.error(data.message || "Invalid credentials");
+        // ✅ FIX: only ONE redirect
+        if (data.role === "admin") {
+          router.push("/admin/dashboard")
+        } else if (data.role === "lic") {
+          router.push("/lab-in-charge/dashboard")
+        }
+      } else {
+        toast.error(data.message || "Invalid credentials")
+      }
+    } catch (err) {
+      console.error(err)
+      toast.error("Server error")
+    } finally {
+      setLoading(false)
     }
-  } catch (err) {
-    console.error(err);
-    toast.error("Server error");
-  } finally {
-    setLoading(false);
   }
-};
-
-
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-[#fffaf8] px-4">

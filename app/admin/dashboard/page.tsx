@@ -5,13 +5,14 @@ import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Toaster, toast } from "sonner"
-import { Camera, Copy } from "lucide-react"
+import { Camera, Copy, LogOut } from "lucide-react"
 import Image from "next/image"
+import { useRouter } from "next/navigation"
 
 export default function AdminDashboard() {
+  const router = useRouter()
   const [step, setStep] = useState<1 | 2 | 3>(1)
-  const [loading, setLoading] = useState(false);
-
+  const [loading, setLoading] = useState(false)
 
   // Step 1: Personal Info
   const [fullName, setFullName] = useState("")
@@ -21,13 +22,12 @@ export default function AdminDashboard() {
   const [profilePic, setProfilePic] = useState<File | null>(null)
   const [preview, setPreview] = useState<string | null>(null)
 
-  // Step 2: Account Info (Temp password)
+  // Step 2: Account Info
   const [email, setEmail] = useState("")
   const [tempPassword, setTempPassword] = useState("")
-
   const [labAccounts, setLabAccounts] = useState<any[]>([])
 
-  // Generate temporary password
+  // Generate temp password
   const generateTempPassword = (length = 10) => {
     const chars =
       "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%"
@@ -36,17 +36,16 @@ export default function AdminDashboard() {
     ).join("")
   }
 
-  // Handle next step: validate personal info
+  // Step navigation
   const handleNextStep = () => {
     if (!fullName || !employeeId || !department || !contactNumber) {
       toast.error("Please fill in all personal information fields")
       return
     }
     setStep(2)
-    setTempPassword(generateTempPassword()) // Generate temp password for step 2
+    setTempPassword(generateTempPassword())
   }
 
-  // Handle next step: validate account info
   const handleNextToConfirm = () => {
     if (!email) {
       toast.error("Please enter an email")
@@ -59,57 +58,54 @@ export default function AdminDashboard() {
     setStep(3)
   }
 
+  // Create account
   const handleCreateAccount = async () => {
-  if (!fullName || !employeeId || !department || !contactNumber || !email || !tempPassword) {
-    toast.error("All fields are required");
-    return;
-  }
-
-  try {
-    setLoading(true);
-
-    const res = await fetch("/api/admin/create-lic", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        fullName,
-        employeeId,
-        department,
-        contactNumber,  
-        email,
-        tempPassword,
-      }),
-    });
-
-    const data = await res.json();
-
-    if (res.ok) {
-      toast.success(data.message);
-
-      // Add to local state (for frontend display)
-      setLabAccounts([...labAccounts, { fullName, employeeId, department, contactNumber, email, preview, profilePic }]);
-
-      // Reset form
-      setFullName("");
-      setEmployeeId("");
-      setDepartment("");
-      setContactNumber("");
-      setProfilePic(null);
-      setPreview(null);
-      setEmail("");
-      setTempPassword("");
-      setStep(1);
-    } else {
-      toast.error(data.message || "Failed to create account");
+    if (!fullName || !employeeId || !department || !contactNumber || !email || !tempPassword) {
+      toast.error("All fields are required")
+      return
     }
-  } catch (err) {
-    console.error(err);
-    toast.error("Server error");
-  } finally {
-    setLoading(false);
-  }
-};
 
+    try {
+      setLoading(true)
+      const res = await fetch("/api/admin/create-lic", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          fullName,
+          employeeId,
+          department,
+          contactNumber,
+          email,
+          tempPassword,
+        }),
+      })
+
+      const data = await res.json()
+      if (res.ok) {
+        toast.success(data.message)
+        setLabAccounts([
+          ...labAccounts,
+          { fullName, employeeId, department, contactNumber, email, preview, profilePic }
+        ])
+        setFullName("")
+        setEmployeeId("")
+        setDepartment("")
+        setContactNumber("")
+        setProfilePic(null)
+        setPreview(null)
+        setEmail("")
+        setTempPassword("")
+        setStep(1)
+      } else {
+        toast.error(data.message || "Failed to create account")
+      }
+    } catch (err) {
+      console.error(err)
+      toast.error("Server error")
+    } finally {
+      setLoading(false)
+    }
+  }
 
   const handleProfilePic = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -118,19 +114,41 @@ export default function AdminDashboard() {
     setPreview(URL.createObjectURL(file))
   }
 
+  const handleLogout = async () => {
+    try {
+      await fetch("/api/auth/logout", { method: "POST" })
+      toast.success("Logged out successfully")
+      router.push("/admin")
+    } catch (err) {
+      console.error(err)
+      toast.error("Logout failed")
+    }
+  }
+
   return (
     <div className="min-h-screen bg-[#fffaf8] p-6 flex flex-col items-center">
       <Toaster richColors position="top-right" />
 
-      {/* Logo */}
-      <div className="flex justify-center mb-4">
-        <Image
-          src="https://i.ibb.co/cbTk669/Untitled-design-removebg-preview.png"
-          alt="Logo"
-          width={100}
-          height={100}
-          className="object-contain"
-        />
+      {/* Logo + Logout */}
+      <div className="w-full max-w-5xl flex justify-between items-center mb-4">
+        <div className="flex justify-center">
+          <Image
+            src="https://i.ibb.co/cbTk669/Untitled-design-removebg-preview.png"
+            alt="Logo"
+            width={100}
+            height={100}
+            className="object-contain"
+          />
+        </div>
+
+        <Button
+          onClick={handleLogout}
+          variant="outline"
+          className="flex items-center gap-2 border-[#800000] text-[#800000] hover:bg-[#800000] hover:text-[#FFD700]"
+        >
+          <LogOut size={16} />
+          Logout
+        </Button>
       </div>
 
       <h1 className="text-3xl font-bold text-[#800000] mb-6 text-center">
@@ -150,6 +168,7 @@ export default function AdminDashboard() {
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
+            {/* STEP 1 */}
             {step === 1 && (
               <div className="space-y-3">
                 <div className="flex flex-col items-center gap-2">
@@ -175,44 +194,24 @@ export default function AdminDashboard() {
                     />
                   </label>
                 </div>
-                <Input
-                  placeholder="Full Name"
-                  value={fullName}
-                  onChange={e => setFullName(e.target.value)}
-                />
-                <Input
-                  placeholder="Employee ID"
-                  value={employeeId}
-                  onChange={e => setEmployeeId(e.target.value)}
-                />
-                <Input
-                  placeholder="Department / Section"
-                  value={department}
-                  onChange={e => setDepartment(e.target.value)}
-                />
+                <Input placeholder="Full Name" value={fullName} onChange={e => setFullName(e.target.value)} />
+                <Input placeholder="Employee ID" value={employeeId} onChange={e => setEmployeeId(e.target.value)} />
+                <Input placeholder="Department / Section" value={department} onChange={e => setDepartment(e.target.value)} />
                 <Input
                   placeholder="Contact Number"
                   value={contactNumber}
-                  onChange={e =>
-                    setContactNumber(e.target.value.replace(/\D/g, "").slice(0, 11))
-                  }
+                  onChange={e => setContactNumber(e.target.value.replace(/\D/g, "").slice(0, 11))}
                 />
-                <Button
-                  className="bg-[#800000] text-[#FFD700] w-full hover:bg-[#660000]"
-                  onClick={handleNextStep}
-                >
+                <Button className="bg-[#800000] text-[#FFD700] w-full hover:bg-[#660000]" onClick={handleNextStep}>
                   Next
                 </Button>
               </div>
             )}
 
+            {/* STEP 2 */}
             {step === 2 && (
               <div className="space-y-3">
-                <Input
-                  placeholder="Email"
-                  value={email}
-                  onChange={e => setEmail(e.target.value)}
-                />
+                <Input placeholder="Email" value={email} onChange={e => setEmail(e.target.value)} />
                 <div className="bg-gray-100 p-2 rounded-md flex justify-between items-center text-sm text-gray-700">
                   Temporary Password: <span className="font-mono">{tempPassword}</span>
                   <Button
@@ -227,58 +226,27 @@ export default function AdminDashboard() {
                   </Button>
                 </div>
                 <div className="flex gap-2">
-                  <Button
-                    className="bg-gray-400 text-white w-full hover:bg-gray-500"
-                    onClick={() => setStep(1)}
-                  >
-                    Back
-                  </Button>
-                  <Button
-                    className="bg-[#800000] text-[#FFD700] w-full hover:bg-[#660000]"
-                    onClick={handleNextToConfirm}
-                  >
-                    Next
-                  </Button>
+                  <Button className="bg-gray-400 text-white w-full hover:bg-gray-500" onClick={() => setStep(1)}>Back</Button>
+                  <Button className="bg-[#800000] text-[#FFD700] w-full hover:bg-[#660000]" onClick={handleNextToConfirm}>Next</Button>
                 </div>
               </div>
             )}
 
+            {/* STEP 3 */}
             {step === 3 && (
               <div className="space-y-3">
                 <h2 className="font-semibold text-gray-700">Confirm Details:</h2>
                 <div className="space-y-1">
-                  <p>
-                    <span className="font-semibold">Full Name:</span> {fullName}
-                  </p>
-                  <p>
-                    <span className="font-semibold">Employee ID:</span> {employeeId}
-                  </p>
-                  <p>
-                    <span className="font-semibold">Department:</span> {department}
-                  </p>
-                  <p>
-                    <span className="font-semibold">Contact:</span> {contactNumber}
-                  </p>
-                  <p>
-                    <span className="font-semibold">Email:</span> {email}
-                  </p>
-                  <p>
-                    <span className="font-semibold">Temporary Password:</span> {tempPassword}
-                  </p>
+                  <p><span className="font-semibold">Full Name:</span> {fullName}</p>
+                  <p><span className="font-semibold">Employee ID:</span> {employeeId}</p>
+                  <p><span className="font-semibold">Department:</span> {department}</p>
+                  <p><span className="font-semibold">Contact:</span> {contactNumber}</p>
+                  <p><span className="font-semibold">Email:</span> {email}</p>
+                  <p><span className="font-semibold">Temporary Password:</span> {tempPassword}</p>
                 </div>
                 <div className="flex gap-2">
-                  <Button
-                    className="bg-gray-400 text-white w-full hover:bg-gray-500"
-                    onClick={() => setStep(2)}
-                  >
-                    Back
-                  </Button>
-                  <Button
-                    className="bg-[#800000] text-[#FFD700] w-full hover:bg-[#660000]"
-                    onClick={handleCreateAccount}
-                  >
-                    Create Account
-                  </Button>
+                  <Button className="bg-gray-400 text-white w-full hover:bg-gray-500" onClick={() => setStep(2)}>Back</Button>
+                  <Button className="bg-[#800000] text-[#FFD700] w-full hover:bg-[#660000]" onClick={handleCreateAccount}>Create Account</Button>
                 </div>
               </div>
             )}
@@ -288,9 +256,7 @@ export default function AdminDashboard() {
         {/* Existing Accounts */}
         <Card className="w-full md:w-1/2 rounded-2xl shadow-md">
           <CardHeader>
-            <CardTitle className="text-lg font-semibold">
-              Existing Lab-in-Charge Accounts
-            </CardTitle>
+            <CardTitle className="text-lg font-semibold">Existing Lab-in-Charge Accounts</CardTitle>
           </CardHeader>
           <CardContent className="space-y-2 max-h-[500px] overflow-y-auto">
             {labAccounts.length === 0 ? (
@@ -298,17 +264,10 @@ export default function AdminDashboard() {
             ) : (
               <ul className="space-y-2">
                 {labAccounts.map((acc, idx) => (
-                  <li
-                    key={idx}
-                    className="flex flex-col p-3 bg-[#fffaf8] border rounded-lg shadow-sm"
-                  >
+                  <li key={idx} className="flex flex-col p-3 bg-[#fffaf8] border rounded-lg shadow-sm">
                     <div className="flex items-center gap-3">
                       {acc.preview ? (
-                        <img
-                          src={acc.preview}
-                          alt="Profile"
-                          className="w-12 h-12 rounded-full object-cover"
-                        />
+                        <img src={acc.preview} alt="Profile" className="w-12 h-12 rounded-full object-cover" />
                       ) : (
                         <div className="w-12 h-12 rounded-full bg-gray-200 flex items-center justify-center text-gray-400">
                           <Camera size={16} />
@@ -317,9 +276,7 @@ export default function AdminDashboard() {
                       <div className="flex flex-col">
                         <span className="font-semibold">{acc.fullName}</span>
                         <span className="text-sm text-gray-600">{acc.email} | {acc.department}</span>
-                        <span className="text-sm text-gray-500">
-                          ID: {acc.employeeId} | Contact: {acc.contactNumber}
-                        </span>
+                        <span className="text-sm text-gray-500">ID: {acc.employeeId} | Contact: {acc.contactNumber}</span>
                       </div>
                     </div>
                   </li>

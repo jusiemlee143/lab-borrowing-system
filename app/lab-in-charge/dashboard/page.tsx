@@ -24,7 +24,6 @@ import { useRouter } from "next/navigation"
 import { Spinner } from "@/components/ui/spinner"
 
 // --- MOCK DATA ---
-
 const initialTools = [
   { id: 1, name: "Arduino Uno", quantity: 10, status: "available" },
   { id: 2, name: "Breadboard", quantity: 5, status: "available" },
@@ -60,8 +59,21 @@ export default function LabInChargePage() {
     return () => clearTimeout(timer)
   }, [])
 
-  // --- HANDLERS ---
+  // --- LOGOUT HANDLER ---
+  const handleLogout = async () => {
+    try {
+      // Clear cookie via API
+      await fetch("/api/auth/logout", { method: "POST" })
 
+      // Redirect to LIC login
+      router.push("/lab-in-charge")
+    } catch (err) {
+      console.error("Logout failed:", err)
+      alert("Logout failed. Please try again.")
+    }
+  }
+
+  // --- HANDLERS ---
   const handleAddItem = (e: React.FormEvent) => {
     e.preventDefault()
     if (!newItemName || !newItemQty) return
@@ -89,22 +101,18 @@ export default function LabInChargePage() {
   }
 
   const handleApproveRequest = (reqId: number, itemName: string) => {
-    // 1. Decrease Quantity in Tools
     const updatedTools = tools.map((tool) => {
       if (tool.name === itemName) {
         const newQty = Math.max(0, tool.quantity - 1)
         let newStatus = "available"
         if (newQty === 0) newStatus = "unavailable"
         else if (newQty < 5) newStatus = "low stock"
-        
         return { ...tool, quantity: newQty, status: newStatus }
       }
       return tool
     })
 
-    // 2. Remove Request
     const updatedRequests = requests.filter((req) => req.id !== reqId)
-
     setTools(updatedTools)
     setRequests(updatedRequests)
     alert(`Approved 1x ${itemName}`)
@@ -117,14 +125,12 @@ export default function LabInChargePage() {
   }
 
   // --- FILTERS ---
-
   const filteredTools = tools.filter((tool) => {
     const matchesSearch = tool.name.toLowerCase().includes(search.toLowerCase())
     const matchesFilter = filter === "all" || tool.status === filter
     return matchesSearch && matchesFilter
   })
 
-  // --- CALCULATIONS FOR STATS ---
   const pendingCount = requests.length
   const lowStockCount = tools.filter(t => t.quantity < 5 && t.quantity > 0).length
 
@@ -148,18 +154,19 @@ export default function LabInChargePage() {
               className="w-14 h-14 object-contain"
             />
             <div>
-                <h1 className="text-xl font-bold text-[#800000] leading-tight">Lab In Charge</h1>
-                <p className="text-xs text-gray-500">Inventory & Requests</p>
+              <h1 className="text-xl font-bold text-[#800000] leading-tight">Lab In Charge</h1>
+              <p className="text-xs text-gray-500">Inventory & Requests</p>
             </div>
           </div>
 
+          {/* LOGOUT BUTTON */}
           <Button
-            onClick={() => router.push("/")}
+            onClick={handleLogout}
             variant="outline"
             className="flex items-center gap-2 border-[#800000] text-[#800000] hover:bg-[#800000] hover:text-[#FFD700]"
           >
             <LogOut size={16} />
-            Exit
+            Log Out
           </Button>
         </div>
       </header>
@@ -222,7 +229,7 @@ export default function LabInChargePage() {
           </Card>
         </div>
 
-        {/* REQUESTS SECTION (New for Lab In Charge) */}
+        {/* REQUESTS SECTION */}
         {requests.length > 0 && (
           <Card className="bg-white border shadow-md rounded-2xl overflow-hidden">
             <CardHeader className="bg-blue-50 border-b">
@@ -286,7 +293,7 @@ export default function LabInChargePage() {
             </Button>
           </CardHeader>
           
-          {/* ADD ITEM FORM (Collapsible) */}
+          {/* ADD ITEM FORM */}
           {isAddingItem && (
             <CardContent className="bg-gray-50 border-b p-6 animate-in fade-in slide-in-from-top-2">
               <form onSubmit={handleAddItem} className="flex flex-col sm:flex-row gap-4 items-end">

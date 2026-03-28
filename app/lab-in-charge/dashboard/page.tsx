@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { 
-  Search, LogOut, FileText, Plus, Trash2, Check, X, User, 
+  Search, LogOut, Plus, Trash2, Check, X, User, 
   Package, AlertCircle 
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -23,109 +23,183 @@ import {
 import { useRouter } from "next/navigation"
 import { Spinner } from "@/components/ui/spinner"
 
-// --- MOCK DATA ---
-const initialTools = [
-  { id: 1, name: "Arduino Uno", quantity: 10, status: "available" },
-  { id: 2, name: "Breadboard", quantity: 5, status: "available" },
-  { id: 3, name: "Ultrasonic Sensor", quantity: 2, status: "low stock" },
-  { id: 4, name: "Jumper Wires", quantity: 0, status: "unavailable" },
-]
+// ----------------------
+// TypeScript Interfaces
+// ----------------------
+interface Tool {
+  _id: string
+  name: string
+  quantity: number
+  status: "available" | "low stock" | "unavailable"
+}
 
-const initialRequests = [
-  { id: 101, studentName: "Juan Dela Cruz", item: "Arduino Uno", date: "2023-10-24" },
-  { id: 102, studentName: "Maria Santos", item: "Breadboard", date: "2023-10-25" },
-]
+interface CartItem {
+  id: string
+  name: string
+  quantity: number
+}
+
+interface Request {
+  _id: string
+  studentName: string
+  section?: string
+  groupNumber?: string
+  date: string
+  activityTitle: string
+  instructor?: string
+  members?: string[]
+  cart?: {
+    id: string
+    name: string
+    quantity: number
+  }[]
+  status: string
+}
 
 export default function LabInChargePage() {
   const router = useRouter()
   const [loading, setLoading] = useState(true)
-  
-  // Inventory State
-  const [tools, setTools] = useState(initialTools)
+
+  const [tools, setTools] = useState<Tool[]>([])
+  const [requests, setRequests] = useState<Request[]>([])
+
   const [search, setSearch] = useState("")
   const [filter, setFilter] = useState("all")
-  
-  // Add Item Form State
+
   const [isAddingItem, setIsAddingItem] = useState(false)
   const [newItemName, setNewItemName] = useState("")
   const [newItemQty, setNewItemQty] = useState("")
 
-  // Requests State
-  const [requests, setRequests] = useState(initialRequests)
+  // Modal state
+  const [modalOpen, setModalOpen] = useState(false)
+  const [modalStudentName, setModalStudentName] = useState("")
+  const [modalRequests, setModalRequests] = useState<Request[]>([])
 
-  // Simulate page load
   useEffect(() => {
-    const timer = setTimeout(() => setLoading(false), 800)
-    return () => clearTimeout(timer)
+    fetchData()
   }, [])
 
-  // --- LOGOUT HANDLER ---
-  const handleLogout = async () => {
+  const fetchData = async () => {
     try {
-      // Clear cookie via API
-      await fetch("/api/auth/logout", { method: "POST" })
+      setLoading(true)
+      const toolsRes = await fetch("/api/lab-in-charge/tools")
+      const reqRes = await fetch("/api/lab-in-charge/requests")
 
-      // Redirect to LIC login
-      router.push("/lab-in-charge")
+      const toolsData = await toolsRes.json()
+      const reqData = await reqRes.json()
+
+      // Normalize tools with proper status type
+      const normalizedTools: Tool[] = Array.isArray(toolsData)
+        ? toolsData.map((t: any) => ({
+            _id: t._id,
+            name: t.name,
+            quantity: t.quantity,
+            status:
+              t.quantity === 0
+                ? "unavailable"
+                : t.quantity < 5
+                ? "low stock"
+                : "available",
+          }))
+        : []
+
+      setTools(normalizedTools)
+      setRequests(Array.isArray(reqData) ? reqData : [])
     } catch (err) {
-      console.error("Logout failed:", err)
-      alert("Logout failed. Please try again.")
+      console.error("Fetch error:", err)
+      setTools([])
+      setRequests([])
+    } finally {
+      setLoading(false)
     }
   }
 
-  // --- HANDLERS ---
-  const handleAddItem = (e: React.FormEvent) => {
+  const handleLogout = async () => {
+    await fetch("/api/auth/logout", { method: "POST" })
+    router.push("/lab-in-charge")
+  }
+
+  const handleAddItem = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!newItemName || !newItemQty) return
 
-    const qty = parseInt(newItemQty)
-    const status = qty === 0 ? "unavailable" : qty < 5 ? "low stock" : "available"
+    try {
+      const res = await fetch("/api/lab-in-charge/tools", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: newItemName,
+          quantity: parseInt(newItemQty),
+        }),
+      })
+      const newItem = await res.json()
 
-    const newItem = {
-      id: Date.now(),
-      name: newItemName,
-      quantity: qty,
-      status: status,
-    }
-
-    setTools([...tools, newItem])
-    setNewItemName("")
-    setNewItemQty("")
-    setIsAddingItem(false)
-  }
-
-  const handleDeleteItem = (id: number) => {
-    if (confirm("Are you sure you want to delete this item from inventory?")) {
-      setTools(tools.filter((tool) => tool.id !== id))
-    }
-  }
-
-  const handleApproveRequest = (reqId: number, itemName: string) => {
-    const updatedTools = tools.map((tool) => {
-      if (tool.name === itemName) {
-        const newQty = Math.max(0, tool.quantity - 1)
-        let newStatus = "available"
-        if (newQty === 0) newStatus = "unavailable"
-        else if (newQty < 5) newStatus = "low stock"
-        return { ...tool, quantity: newQty, status: newStatus }
+      const formattedItem: Tool = {
+        _id: newItem._id,
+        name: newItem.name,
+        quantity: newItem.quantity,
+        status:
+          newItem.quantity === 0
+            ? "unavailable"
+            : newItem.quantity < 5
+            ? "low stock"
+            : "available",
       }
-      return tool
-    })
 
-    const updatedRequests = requests.filter((req) => req.id !== reqId)
-    setTools(updatedTools)
-    setRequests(updatedRequests)
-    alert(`Approved 1x ${itemName}`)
-  }
-
-  const handleRejectRequest = (reqId: number) => {
-    if (confirm("Reject this request?")) {
-      setRequests(requests.filter((req) => req.id !== reqId))
+      setTools(prev => [...prev, formattedItem])
+      setNewItemName("")
+      setNewItemQty("")
+      setIsAddingItem(false)
+    } catch (err) {
+      console.error("Add error:", err)
     }
   }
 
-  // --- FILTERS ---
-  const filteredTools = tools.filter((tool) => {
+  const handleDeleteItem = async (id: string) => {
+    if (!confirm("Are you sure you want to delete this item from inventory?")) return
+    try {
+      await fetch(`/api/lab-in-charge/tools/${id}`, { method: "DELETE" })
+      setTools(prev => prev.filter(t => t._id !== id))
+    } catch (err) {
+      console.error("Delete error:", err)
+    }
+  }
+
+  const handleApproveRequest = async (reqId: string) => {
+    try {
+      await fetch(`/api/lab-in-charge/requests/${reqId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: "approved" }),
+      })
+      fetchData()
+    } catch (err) {
+      console.error(err)
+    }
+  }
+
+  const handleRejectRequest = async (reqId: string) => {
+    try {
+      await fetch(`/api/lab-in-charge/requests/${reqId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: "rejected" }),
+      })
+      fetchData()
+    } catch (err) {
+      console.error(err)
+    }
+  }
+
+  const openModal = (studentName: string, studentRequests: Request[]) => {
+    setModalStudentName(studentName)
+    setModalRequests(studentRequests)
+    setModalOpen(true)
+  }
+
+  const closeModal = () => setModalOpen(false)
+
+  const filteredTools = tools.filter(tool => {
     const matchesSearch = tool.name.toLowerCase().includes(search.toLowerCase())
     const matchesFilter = filter === "all" || tool.status === filter
     return matchesSearch && matchesFilter
@@ -144,6 +218,7 @@ export default function LabInChargePage() {
 
   return (
     <div className="min-h-screen bg-[#fffaf8]">
+
       {/* HEADER */}
       <header className="sticky top-0 z-50 bg-white shadow-md">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between px-6 py-4 max-w-7xl mx-auto gap-4">
@@ -158,35 +233,20 @@ export default function LabInChargePage() {
               <p className="text-xs text-gray-500">Inventory & Requests</p>
             </div>
           </div>
-
-          {/* LOGOUT BUTTON */}
           <Button
             onClick={handleLogout}
             variant="outline"
             className="flex items-center gap-2 border-[#800000] text-[#800000] hover:bg-[#800000] hover:text-[#FFD700]"
           >
-            <LogOut size={16} />
-            Log Out
+            <LogOut size={16} /> Log Out
           </Button>
         </div>
       </header>
 
-      {/* MAIN CONTENT */}
       <main className="max-w-7xl mx-auto p-4 sm:p-6 md:p-8 space-y-6">
-        
-        {/* WELCOME CARD */}
-        <Card className="bg-[#800000] text-[#FFD700] border-none shadow-xl rounded-2xl">
-          <CardHeader>
-            <CardTitle className="text-2xl font-bold">Dashboard Overview</CardTitle>
-          </CardHeader>
-          <CardContent className="text-[#fff8e1]">
-            Manage lab equipment and approve student requests efficiently.
-          </CardContent>
-        </Card>
 
-        {/* STATS CARDS */}
+        {/* DASHBOARD CARDS */}
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {/* Total Items */}
           <Card className="bg-white shadow-md rounded-xl border-l-4 border-[#800000] h-32 flex flex-col justify-between">
             <CardContent className="flex flex-col justify-between h-full p-6">
               <div className="flex items-center justify-between">
@@ -200,7 +260,6 @@ export default function LabInChargePage() {
             </CardContent>
           </Card>
 
-          {/* Low Stock */}
           <Card className="bg-white shadow-md rounded-xl border-l-4 border-[#FFD700] h-32 flex flex-col justify-between">
             <CardContent className="flex flex-col justify-between h-full p-6">
               <div className="flex items-center justify-between">
@@ -214,7 +273,6 @@ export default function LabInChargePage() {
             </CardContent>
           </Card>
 
-          {/* Pending Requests */}
           <Card className="bg-white shadow-md rounded-xl border-l-4 border-blue-500 h-32 flex flex-col justify-between">
             <CardContent className="flex flex-col justify-between h-full p-6">
               <div className="flex items-center justify-between">
@@ -229,7 +287,7 @@ export default function LabInChargePage() {
           </Card>
         </div>
 
-        {/* REQUESTS SECTION */}
+        {/* REQUESTS TABLE */}
         {requests.length > 0 && (
           <Card className="bg-white border shadow-md rounded-2xl overflow-hidden">
             <CardHeader className="bg-blue-50 border-b">
@@ -243,34 +301,32 @@ export default function LabInChargePage() {
                   <thead className="bg-gray-50 text-gray-600">
                     <tr>
                       <th className="py-3 px-4">Student Name</th>
-                      <th className="py-3 px-4">Item Requested</th>
                       <th className="py-3 px-4">Date</th>
                       <th className="py-3 px-4 text-right">Actions</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {requests.map((req) => (
-                      <tr key={req.id} className="border-b last:border-0 hover:bg-gray-50/50">
-                        <td className="py-3 px-4 font-medium">{req.studentName}</td>
-                        <td className="py-3 px-4">{req.item}</td>
-                        <td className="py-3 px-4 text-gray-500">{req.date}</td>
+                    {Array.from(
+                      requests.reduce((map, req) => {
+                        if (!map.has(req.studentName)) map.set(req.studentName, [] as Request[])
+                        map.get(req.studentName)!.push(req)
+                        return map
+                      }, new Map<string, Request[]>())
+                    ).map(([studentName, studentRequests]) => (
+                      <tr key={studentName} className="border-b last:border-0 hover:bg-gray-50/50">
+                        <td className="py-3 px-4 font-medium">{studentName}</td>
+                        <td className="py-3 px-4 text-gray-500">{studentRequests[0].date}</td>
                         <td className="py-3 px-4 text-right flex justify-end gap-2">
                           <Button
                             size="sm"
-                            variant="ghost"
-                            className="text-green-600 hover:bg-green-50"
-                            onClick={() => handleApproveRequest(req.id, req.item)}
+                            variant="outline"
+                            className="text-blue-600 hover:bg-blue-50"
+                            onClick={() => openModal(studentName, studentRequests)}
                           >
-                            <Check size={16} />
+                            View
                           </Button>
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            className="text-red-600 hover:bg-red-50"
-                            onClick={() => handleRejectRequest(req.id)}
-                          >
-                            <X size={16} />
-                          </Button>
+                          
+                         
                         </td>
                       </tr>
                     ))}
@@ -281,19 +337,18 @@ export default function LabInChargePage() {
           </Card>
         )}
 
-        {/* INVENTORY MANAGEMENT */}
+        {/* INVENTORY TABLE */}
         <Card className="bg-white border shadow-md rounded-2xl">
           <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle className="text-[#800000]">Inventory Management</CardTitle>
             <Button 
-                onClick={() => setIsAddingItem(!isAddingItem)}
-                className="bg-[#800000] text-[#FFD700] hover:bg-[#660000]"
+              onClick={() => setIsAddingItem(!isAddingItem)}
+              className="bg-[#800000] text-[#FFD700] hover:bg-[#660000]"
             >
               <Plus size={16} className="mr-2"/> Add New Item
             </Button>
           </CardHeader>
-          
-          {/* ADD ITEM FORM */}
+
           {isAddingItem && (
             <CardContent className="bg-gray-50 border-b p-6 animate-in fade-in slide-in-from-top-2">
               <form onSubmit={handleAddItem} className="flex flex-col sm:flex-row gap-4 items-end">
@@ -333,7 +388,6 @@ export default function LabInChargePage() {
           )}
 
           <CardContent className="p-6">
-            {/* SEARCH + FILTER */}
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
               <div className="relative w-full sm:w-1/2">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
@@ -358,7 +412,6 @@ export default function LabInChargePage() {
               </Select>
             </div>
 
-            {/* INVENTORY TABLE */}
             <div className="overflow-x-auto rounded-lg border border-gray-100">
               <table className="w-full text-sm border-collapse">
                 <thead className="bg-[#f5f5f5]">
@@ -372,7 +425,7 @@ export default function LabInChargePage() {
                 <tbody>
                   {filteredTools.length > 0 ? (
                     filteredTools.map((tool) => (
-                      <tr key={tool.id} className="border-b hover:bg-gray-50 transition-colors">
+                      <tr key={tool._id} className="border-b hover:bg-gray-50 transition-colors">
                         <td className="py-3 px-4 font-medium text-gray-900">{tool.name}</td>
                         <td className="py-3 px-4 text-gray-600">{tool.quantity}</td>
                         <td className="py-3 px-4 text-center">
@@ -393,7 +446,7 @@ export default function LabInChargePage() {
                             variant="ghost"
                             size="sm"
                             className="text-red-500 hover:text-red-700 hover:bg-red-50 p-2"
-                            onClick={() => handleDeleteItem(tool.id)}
+                            onClick={() => handleDeleteItem(tool._id)}
                             title="Delete Item"
                           >
                             <Trash2 size={16} />
@@ -414,6 +467,98 @@ export default function LabInChargePage() {
           </CardContent>
         </Card>
       </main>
+
+     {/* MODAL */}
+{modalOpen && modalRequests.length > 0 && (
+  <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+    <div className="bg-white rounded-2xl w-full max-w-lg p-6 shadow-xl overflow-y-auto max-h-[90vh]">
+
+      <h2 className="text-xl font-bold text-[#800000] mb-4">
+        Request Details
+      </h2>
+
+      {modalRequests.map((req) => (
+        <div key={req._id} className="mb-6 border-b pb-4">
+
+          {/* BASIC INFO */}
+          <div className="space-y-1 text-sm mb-3">
+            <p><strong>Student:</strong> {req.studentName}</p>
+            <p><strong>Section:</strong> {req.section || "N/A"}</p>
+            <p><strong>Group #:</strong> {req.groupNumber || "N/A"}</p>
+            <p><strong>Date:</strong> {req.date}</p>
+            <p><strong>Activity:</strong> {req.activityTitle}</p>
+            <p><strong>Instructor:</strong> {req.instructor || "N/A"}</p>
+          </div>
+
+          {/* MEMBERS */}
+          <div className="mb-3">
+            <h3 className="font-semibold text-[#800000] text-sm">Members:</h3>
+            {req.members && req.members.length > 0 ? (
+              <ul className="list-disc list-inside text-sm text-gray-700">
+                {req.members.map((member, i) => (
+                  <li key={i}>{member}</li>
+                ))}
+              </ul>
+            ) : (
+              <p className="text-gray-400 text-sm">No members</p>
+            )}
+          </div>
+
+          {/* CART */}
+          <div>
+            <h3 className="font-semibold text-[#800000] text-sm">Requested Items:</h3>
+            {req.cart && req.cart.length > 0 ? (
+              <div className="space-y-1">
+                {req.cart.map((item) => (
+                  <div key={item.id} className="flex justify-between text-sm border-b pb-1">
+                    <span>{item.name}</span>
+                    <span className="text-gray-500">Qty: {item.quantity}</span>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-gray-400 text-sm">No items</p>
+            )}
+          </div>
+
+        </div>
+      ))}
+
+      {/* ACTION BUTTONS */}
+      <div className="flex gap-2 mt-4">
+        <Button
+          className="bg-green-600 hover:bg-green-700 w-full"
+          onClick={() => {
+            handleApproveRequest(modalRequests[0]._id)
+            closeModal()
+          }}
+        >
+          Approve
+        </Button>
+
+        <Button
+          className="bg-red-600 hover:bg-red-700 w-full"
+          onClick={() => {
+            handleRejectRequest(modalRequests[0]._id)
+            closeModal()
+          }}
+        >
+          Reject
+        </Button>
+      </div>
+
+      <Button
+        onClick={closeModal}
+        variant="outline"
+        className="mt-2 w-full"
+      >
+        Close
+      </Button>
+
+    </div>
+  </div>
+)}
+
     </div>
   )
-}
+} 

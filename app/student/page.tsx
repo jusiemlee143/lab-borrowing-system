@@ -18,27 +18,44 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { useRouter } from "next/navigation"
-import { Spinner } from "@/components/ui/spinner" // ShadCN Spinner
-
-const toolsData = [
-  { id: 1, name: "Arduino Uno", quantity: 10, status: "available" },
-  { id: 2, name: "Breadboard", quantity: 0, status: "unavailable" },
-  { id: 3, name: "Ultrasonic Sensor", quantity: 5, status: "available" },
-]
+import { Spinner } from "@/components/ui/spinner"
 
 export default function StudentPage() {
   const router = useRouter()
   const [search, setSearch] = useState("")
   const [filter, setFilter] = useState("all")
   const [loading, setLoading] = useState(true)
+  const [tools, setTools] = useState<any[]>([])
 
-  // Simulate page load for spinner
+  // Fetch real-time tools from backend
+    const fetchTools = async () => {
+    try {
+      setLoading(true)
+      const res = await fetch("/api/lab-in-charge/tools")
+      const data = await res.json()
+      // Normalize data for STUDENTS: only "available" or "unavailable"
+      const normalizedTools = Array.isArray(data)
+        ? data.map((t: any) => ({
+            id: t._id || t.id,
+            name: t.name,
+            quantity: t.quantity,
+            status: t.quantity === 0 ? "unavailable" : "available", // <- IGNORE low stock
+          }))
+        : []
+      setTools(normalizedTools)
+    } catch (err) {
+      console.error("Failed to fetch tools:", err)
+      setTools([])
+    } finally {
+      setLoading(false)
+    }
+  }
+
   useEffect(() => {
-    const timer = setTimeout(() => setLoading(false), 800) // Adjust delay if needed
-    return () => clearTimeout(timer)
+    fetchTools()
   }, [])
 
-  const filteredTools = toolsData.filter((tool) => {
+  const filteredTools = tools.filter((tool) => {
     const matchesSearch = tool.name
       .toLowerCase()
       .includes(search.toLowerCase())
@@ -47,13 +64,16 @@ export default function StudentPage() {
   })
 
   if (loading) {
-    // Show full-page loading spinner
     return (
       <div className="flex items-center justify-center min-h-screen bg-[#fffaf8]">
         <Spinner className="w-12 h-12 text-[#800000]" />
       </div>
     )
   }
+
+  const totalTools = tools.length
+  const availableTools = tools.filter((t) => t.status === "available").length
+  const unavailableTools = tools.filter((t) => t.status === "unavailable").length
 
   return (
     <div className="min-h-screen bg-[#fffaf8]">
@@ -70,7 +90,7 @@ export default function StudentPage() {
           </div>
 
           <Button
-            onClick={() => router.push("/")} // Navigate to landing page
+            onClick={() => router.push("/")}
             variant="outline"
             className="flex items-center gap-2 border-[#800000] text-[#800000] hover:bg-[#800000] hover:text-[#FFD700]"
           >
@@ -94,38 +114,31 @@ export default function StudentPage() {
 
         {/* STATS CARDS */}
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {/* Total Tools */}
           <Card className="bg-white shadow-md rounded-xl border-l-4 border-[#800000] h-32 flex flex-col justify-between">
             <CardContent className="flex flex-col justify-between h-full">
               <h3 className="text-[#800000] font-bold text-lg">Total Tools</h3>
               <div className="flex items-center justify-end gap-2">
-                <span className="text-gray-600 text-sm">{toolsData.length}</span>
+                <span className="text-gray-600 text-sm">{totalTools}</span>
                 <span className="w-3 h-3 rounded-full bg-[#800000]"></span>
               </div>
             </CardContent>
           </Card>
 
-          {/* Available */}
           <Card className="bg-white shadow-md rounded-xl border-l-4 border-[#FFD700] h-32 flex flex-col justify-between">
             <CardContent className="flex flex-col justify-between h-full">
               <h3 className="text-[#FFD700] font-bold text-lg">Available</h3>
               <div className="flex items-center justify-end gap-2">
-                <span className="text-gray-600 text-sm">
-                  {toolsData.filter((t) => t.status === "available").length}
-                </span>
+                <span className="text-gray-600 text-sm">{availableTools}</span>
                 <span className="w-3 h-3 rounded-full bg-green-500"></span>
               </div>
             </CardContent>
           </Card>
 
-          {/* Unavailable */}
           <Card className="bg-white shadow-md rounded-xl border-l-4 border-red-500 h-32 flex flex-col justify-between">
             <CardContent className="flex flex-col justify-between h-full">
               <h3 className="text-red-500 font-bold text-lg">Unavailable</h3>
               <div className="flex items-center justify-end gap-2">
-                <span className="text-gray-600 text-sm">
-                  {toolsData.filter((t) => t.status === "unavailable").length}
-                </span>
+                <span className="text-gray-600 text-sm">{unavailableTools}</span>
                 <span className="w-3 h-3 rounded-full bg-red-500"></span>
               </div>
             </CardContent>
@@ -136,7 +149,6 @@ export default function StudentPage() {
         <Card className="bg-white border shadow-md rounded-2xl">
           <CardContent className="p-6">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-              {/* LEFT: SEARCH */}
               <div className="relative w-full sm:w-1/2">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
                 <Input
@@ -147,7 +159,6 @@ export default function StudentPage() {
                 />
               </div>
 
-              {/* RIGHT: FILTER + BORROWER SLIP */}
               <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto items-stretch sm:items-center">
                 <Select onValueChange={setFilter} defaultValue="all">
                   <SelectTrigger className="w-full sm:w-48 border-[#800000]">
@@ -161,17 +172,12 @@ export default function StudentPage() {
                 </Select>
 
                 <Button
-                onClick={() => {
-                  setLoading(true);           // Show loader
-                  router.push("student/borrower-slip");
-                }}
-                className="gap-2 w-full sm:w-auto bg-[#800000] text-[#FFD700] hover:bg-[#660000]"
-              >
-                <FileText size={16} />
-                Borrower Slip
-              </Button>
-
-
+                  onClick={() => router.push("/student/borrower-slip")}
+                  className="gap-2 w-full sm:w-auto bg-[#800000] text-[#FFD700] hover:bg-[#660000]"
+                >
+                  <FileText size={16} />
+                  Borrower Slip
+                </Button>
               </div>
             </div>
           </CardContent>

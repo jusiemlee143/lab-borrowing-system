@@ -35,6 +35,7 @@ export default function LandingPage() {
               <Menu />
             </Button>
           </SheetTrigger>
+
           <SheetContent side="left" className="p-0 bg-[#800000] text-[#FFD700]">
             <LogoSection />
             <SidebarMenu loading={loading} setLoading={setLoading} />
@@ -45,7 +46,7 @@ export default function LandingPage() {
       {/* ✅ MAIN CONTENT */}
       <main className="flex-1 md:ml-64 p-6 md:p-10 w-full">
         {/* HERO */}
-        <section className="text-center bg-white rounded-2xl shadow-lg p-8 md:p-12 border">
+        <section className="text-center bg-white rounded-2xl shadow-lg p-8 md:p-12 border hover:shadow-2xl hover:-translate-y-1 hover:scale-[1.01] transition-all duration-300">
           <Badge className="mb-4 bg-[#FFD700] text-[#800000]">
             Lab Management
           </Badge>
@@ -63,7 +64,7 @@ export default function LandingPage() {
             <Link href="/student">
               <Button
                 onClick={handleClick}
-                className="bg-[#800000] hover:bg-[#660000] w-full sm:w-auto"
+                className="bg-[#800000] hover:bg-[#660000] hover:scale-105 transition-all duration-300 w-full sm:w-auto"
                 disabled={loading}
               >
                 {loading && <Loader2 className="animate-spin mr-2 h-4 w-4" />}
@@ -75,7 +76,7 @@ export default function LandingPage() {
               <Button
                 onClick={handleClick}
                 variant="outline"
-                className="border-[#800000] text-[#800000] w-full sm:w-auto"
+                className="border-[#800000] text-[#800000] hover:scale-105 transition-all duration-300 w-full sm:w-auto"
                 disabled={loading}
               >
                 {loading && <Loader2 className="animate-spin mr-2 h-4 w-4" />}
@@ -89,7 +90,6 @@ export default function LandingPage() {
 
         {/* FEATURES */}
         <section className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-          {/* Added Links to cards */}
           <Link href="/help" onClick={handleClick} className="block h-full">
             <FeatureCard
               title="Help"
@@ -132,7 +132,13 @@ function LogoSection() {
   )
 }
 
-function SidebarMenu({ loading, setLoading }: { loading: boolean; setLoading: (v: boolean) => void }) {
+function SidebarMenu({
+  loading,
+  setLoading,
+}: {
+  loading: boolean
+  setLoading: (v: boolean) => void
+}) {
   const menu = [
     { name: "Student", href: "/student" },
     { name: "Lab-in-Charge", href: "/lab-in-charge" },
@@ -168,12 +174,12 @@ function FeatureCard({
   desc: string
 }) {
   return (
-    // Added cursor-pointer for better UX
-    <Card className="h-full rounded-2xl border shadow-sm hover:shadow-xl transition duration-300 cursor-pointer">
+    <Card className="h-full rounded-2xl border shadow-sm hover:shadow-2xl hover:-translate-y-2 hover:scale-[1.03] transition-all duration-300 ease-in-out cursor-pointer">
       <CardContent className="p-6 text-center h-full flex flex-col justify-center">
         <h3 className="font-bold text-[#800000] text-lg mb-2">
           {title}
         </h3>
+
         <p className="text-gray-600 text-sm">{desc}</p>
       </CardContent>
     </Card>

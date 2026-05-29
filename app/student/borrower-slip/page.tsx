@@ -33,6 +33,12 @@ type Tool = {
   status: string
 }
 
+type Teacher = {
+  _id: string
+  name: string
+  email: string
+}
+
 export default function BorrowerSlipPage() {
   const router = useRouter()
   const [date, setDate] = useState("")
@@ -40,7 +46,8 @@ export default function BorrowerSlipPage() {
   const [section, setSection] = useState("")
   const [groupNumber, setGroupNumber] = useState("")
   const [activityTitle, setActivityTitle] = useState("")
-  const [instructor, setInstructor] = useState("")
+  const [instructor, setInstructor] = useState("") // stores teacher._id
+  const [teachers, setTeachers] = useState<Teacher[]>([]) // ✅ dynamic list
   const [members, setMembers] = useState<string[]>([""])
   const [cart, setCart] = useState<CartItem[]>([])
   const [tools, setTools] = useState<Tool[]>([])
@@ -50,6 +57,21 @@ export default function BorrowerSlipPage() {
   useEffect(() => {
     const today = new Date().toISOString().split("T")[0]
     setDate(today)
+  }, [])
+
+  // Fetch teachers dynamically
+  useEffect(() => {
+    const fetchTeachers = async () => {
+      try {
+        const res = await fetch("/api/admin/teachers")
+        const data = await res.json()
+        setTeachers(data) // populate teacher list
+      } catch (err) {
+        console.error("Failed to fetch teachers:", err)
+        setTeachers([])
+      }
+    }
+    fetchTeachers()
   }, [])
 
   // Fetch tools from backend
@@ -151,7 +173,7 @@ export default function BorrowerSlipPage() {
       groupNumber,
       date,
       activityTitle,
-      instructor,
+      instructor, // teacher._id
       members,
       cart,
     }
@@ -298,11 +320,16 @@ export default function BorrowerSlipPage() {
         {/* INSTRUCTOR & SUBMIT */}
         <Card className="rounded-2xl shadow-md">
           <CardContent className="p-6 flex flex-col sm:flex-row items-center justify-between gap-4">
-            <Select onValueChange={setInstructor}>
-              <SelectTrigger className="w-full sm:w-64"><SelectValue placeholder="Select Instructor" /></SelectTrigger>
+            <Select onValueChange={setInstructor} value={instructor}>
+              <SelectTrigger className="w-full sm:w-64">
+                <SelectValue placeholder="Select Instructor" />
+              </SelectTrigger>
               <SelectContent>
-                <SelectItem value="Instructor A">Instructor A</SelectItem>
-                <SelectItem value="Instructor B">Instructor B</SelectItem>
+                {teachers.map((t) => (
+                  <SelectItem key={t._id} value={t._id}>
+                    {t.name}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
             <Button onClick={handleSubmit} className="w-full sm:w-auto bg-[#800000] text-[#FFD700] hover:bg-[#660000]">

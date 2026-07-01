@@ -19,7 +19,7 @@ const requestSchema = new mongoose.Schema({
   ],
 
   status: {
-    type: String,
+    type: String, 
     default: "pending",
   },
 });

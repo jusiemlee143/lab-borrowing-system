@@ -6,70 +6,199 @@ connectDB();
 
 export async function PATCH(req, { params }) {
   try {
-    const { action } = await req.json(); // "approve" or "reject"
+    const { id } = await params;
+    const { action } = await req.json();
 
-    const request = await Request.findById(params.id);
+    console.log("==================================");
+    console.log("PATCH REQUEST RECEIVED");
+    console.log("Request ID:", id);
+    console.log("Action:", action);
+
+    const request = await Request.findById(id);
+
+    console.log("Request Found:", !!request);
 
     if (!request) {
-      return Response.json({ message: "Request not found" }, { status: 404 });
+      return Response.json(
+        { message: "Request not found" },
+        { status: 404 }
+      );
     }
 
-    // =========================
-    // ✅ APPROVE REQUEST
-    // =========================
-    if (action === "approve") {
-      // 🔒 STEP 1: CHECK ALL STOCK FIRST
-      for (const item of request.cart) {
-        const tool = await Tool.findById(item.id);
+    console.log("Current Status:", request.status);
 
-        if (!tool) {
+    switch (action) {
+
+      case "approve":
+        if (request.status !== "pending") {
           return Response.json(
-            { message: `Tool not found: ${item.name}` },
-            { status: 404 }
+            {
+              message: "Only pending requests can be approved.",
+            },
+            {
+              status: 400,
+            }
           );
         }
 
-        if (tool.quantity < item.quantity) {
+        request.status = "approved";
+        request.approvedDate = new Date();
+
+        console.log("Status changed to APPROVED");
+
+        break;
+
+      case "reject":
+        if (request.status !== "pending") {
           return Response.json(
-            { message: `Not enough stock for ${item.name}` },
-            { status: 400 }
+            {
+              message: "Only pending requests can be rejected.",
+            },
+            {
+              status: 400,
+            }
           );
         }
-      }
 
-      // 🔒 STEP 2: DEDUCT STOCK (ONLY IF ALL ARE VALID)
-      for (const item of request.cart) {
-        const tool = await Tool.findById(item.id);
+        request.status = "rejected";
+        request.rejectedDate = new Date();
 
-        tool.quantity -= item.quantity;
+        console.log("Status changed to REJECTED");
 
-        // Update status
-        if (tool.quantity === 0) tool.status = "unavailable";
-        else if (tool.quantity < 5) tool.status = "low stock";
-        else tool.status = "available";
+        break;
 
-        await tool.save();
-      }
+      case "release":
+        if (request.status !== "approved") {
+          return Response.json(
+            {
+              message: "Only approved requests can be released.",
+            },
+            {
+              status: 400,
+            }
+          );
+        }
 
-      request.status = "approved";
-    }
+        for (const item of request.cart) {
+          const tool = await Tool.findById(item.id);
 
-    // =========================
-    // ❌ REJECT REQUEST
-    // =========================
-    if (action === "reject") {
-      request.status = "rejected";
+          if (!tool) {
+            return Response.json(
+              {
+                message: `Tool not found: ${item.name}`,
+              },
+              {
+                status: 404,
+              }
+            );
+          }
+
+          if (tool.quantity < item.quantity) {
+            return Response.json(
+              {
+                message: `Not enough stock for ${item.name}`,
+              },
+              {
+                status: 400,
+              }
+            );
+          }
+        }
+
+        for (const item of request.cart) {
+          const tool = await Tool.findById(item.id);
+
+          tool.quantity -= item.quantity;
+
+          if (tool.quantity === 0)
+            tool.status = "unavailable";
+          else if (tool.quantity < 5)
+            tool.status = "low stock";
+          else
+            tool.status = "available";
+
+          await tool.save();
+        }
+
+        request.status = "released";
+        request.releasedDate = new Date();
+
+        console.log("Status changed to RELEASED");
+
+        break;
+
+      case "return":
+        if (request.status !== "released") {
+          return Response.json(
+            {
+              message: "Only released requests can be returned.",
+            },
+            {
+              status: 400,
+            }
+          );
+        }
+
+        for (const item of request.cart) {
+          const tool = await Tool.findById(item.id);
+
+          if (!tool) continue;
+
+          tool.quantity += item.quantity;
+
+          if (tool.quantity === 0)
+            tool.status = "unavailable";
+          else if (tool.quantity < 5)
+            tool.status = "low stock";
+          else
+            tool.status = "available";
+
+          await tool.save();
+        }
+
+        request.status = "returned";
+        request.returnedDate = new Date();
+
+        console.log("Status changed to RETURNED");
+
+        break;
+
+      default:
+        return Response.json(
+          {
+            message: "Invalid action.",
+          },
+          {
+            status: 400,
+          }
+        );
     }
 
     await request.save();
 
-    return Response.json({ message: "Request updated successfully" });
+    console.log("Saved Successfully");
+    console.log("New Status:", request.status);
+    console.log("==================================");
+
+    return Response.json({
+      success: true,
+      message: `Request ${action}d successfully.`,
+      request,
+    });
 
   } catch (err) {
+
+    console.error("PATCH ERROR:");
     console.error(err);
+
     return Response.json(
-      { message: "Error updating request" },
-      { status: 500 }
+      {
+        success: false,
+        message: err.message,
+      },
+      {
+        status: 500,
+      }
     );
   }
 }

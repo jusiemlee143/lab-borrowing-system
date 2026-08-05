@@ -1,8 +1,8 @@
 "use client"
-
+import RequestsManager from "@/components/requests/RequestsManager";
 import { useState, useEffect } from "react"
 import { 
-  Search, LogOut, Plus, Trash2, Check, X, User, 
+  Search, LogOut, Plus, Trash2, User, 
   Package, AlertCircle 
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -33,35 +33,16 @@ interface Tool {
   status: "available" | "low stock" | "unavailable"
 }
 
-interface CartItem {
-  id: string
-  name: string
-  quantity: number
-}
 
-interface Request {
-  _id: string
-  studentName: string
-  section?: string
-  groupNumber?: string
-  date: string
-  activityTitle: string
-  instructor?: string
-  members?: string[]
-  cart?: {
-    id: string
-    name: string
-    quantity: number
-  }[]
-  status: string
-}
+
+
 
 export default function LabInChargePage() {
   const router = useRouter()
   const [loading, setLoading] = useState(true)
 
   const [tools, setTools] = useState<Tool[]>([])
-  const [requests, setRequests] = useState<Request[]>([])
+  
 
   const [search, setSearch] = useState("")
   const [filter, setFilter] = useState("all")
@@ -71,9 +52,9 @@ export default function LabInChargePage() {
   const [newItemQty, setNewItemQty] = useState("")
 
   // Modal state
-  const [modalOpen, setModalOpen] = useState(false)
-  const [modalStudentName, setModalStudentName] = useState("")
-  const [modalRequests, setModalRequests] = useState<Request[]>([])
+  
+  
+  
 
   useEffect(() => {
     fetchData()
@@ -83,10 +64,10 @@ export default function LabInChargePage() {
     try {
       setLoading(true)
       const toolsRes = await fetch("/api/lab-in-charge/tools")
-      const reqRes = await fetch("/api/lab-in-charge/requests")
+      
 
       const toolsData = await toolsRes.json()
-      const reqData = await reqRes.json()
+      
 
       // Normalize tools with proper status type
       const normalizedTools: Tool[] = Array.isArray(toolsData)
@@ -104,11 +85,11 @@ export default function LabInChargePage() {
         : []
 
       setTools(normalizedTools)
-      setRequests(Array.isArray(reqData) ? reqData : [])
+     
     } catch (err) {
       console.error("Fetch error:", err)
       setTools([])
-      setRequests([])
+      
     } finally {
       setLoading(false)
     }
@@ -165,39 +146,12 @@ export default function LabInChargePage() {
     }
   }
 
-  const handleApproveRequest = async (reqId: string) => {
-    try {
-      await fetch(`/api/lab-in-charge/requests/${reqId}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status: "approved" }),
-      })
-      fetchData()
-    } catch (err) {
-      console.error(err)
-    }
-  }
+  
 
-  const handleRejectRequest = async (reqId: string) => {
-    try {
-      await fetch(`/api/lab-in-charge/requests/${reqId}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status: "rejected" }),
-      })
-      fetchData()
-    } catch (err) {
-      console.error(err)
-    }
-  }
+  
+  
 
-  const openModal = (studentName: string, studentRequests: Request[]) => {
-    setModalStudentName(studentName)
-    setModalRequests(studentRequests)
-    setModalOpen(true)
-  }
-
-  const closeModal = () => setModalOpen(false)
+  
 
   const filteredTools = tools.filter(tool => {
     const matchesSearch = tool.name.toLowerCase().includes(search.toLowerCase())
@@ -205,7 +159,7 @@ export default function LabInChargePage() {
     return matchesSearch && matchesFilter
   })
 
-  const pendingCount = requests.length
+const pendingCount = 0
   const lowStockCount = tools.filter(t => t.quantity < 5 && t.quantity > 0).length
 
   if (loading) {
@@ -287,55 +241,7 @@ export default function LabInChargePage() {
           </Card>
         </div>
 
-        {/* REQUESTS TABLE */}
-        {requests.length > 0 && (
-          <Card className="bg-white border shadow-md rounded-2xl overflow-hidden">
-            <CardHeader className="bg-blue-50 border-b">
-              <CardTitle className="text-blue-800 flex items-center gap-2">
-                <User size={20} /> Pending Requests
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="p-0">
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm text-left">
-                  <thead className="bg-gray-50 text-gray-600">
-                    <tr>
-                      <th className="py-3 px-4">Student Name</th>
-                      <th className="py-3 px-4">Date</th>
-                      <th className="py-3 px-4 text-right">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {Array.from(
-                      requests.reduce((map, req) => {
-                        if (!map.has(req.studentName)) map.set(req.studentName, [] as Request[])
-                        map.get(req.studentName)!.push(req)
-                        return map
-                      }, new Map<string, Request[]>())
-                    ).map(([studentName, studentRequests]) => (
-                      <tr key={studentName} className="border-b last:border-0 hover:bg-gray-50/50">
-                        <td className="py-3 px-4 font-medium">{studentName}</td>
-                        <td className="py-3 px-4 text-gray-500">{studentRequests[0].date}</td>
-                        <td className="py-3 px-4 text-right flex justify-end gap-2">
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="text-blue-600 hover:bg-blue-50"
-                            onClick={() => openModal(studentName, studentRequests)}
-                          >
-                            View
-                          </Button>
-                          
-                         
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </CardContent>
-          </Card>
-        )}
+        <RequestsManager />
 
         {/* INVENTORY TABLE */}
         <Card className="bg-white border shadow-md rounded-2xl">
@@ -468,96 +374,7 @@ export default function LabInChargePage() {
         </Card>
       </main>
 
-     {/* MODAL */}
-{modalOpen && modalRequests.length > 0 && (
-  <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-    <div className="bg-white rounded-2xl w-full max-w-lg p-6 shadow-xl overflow-y-auto max-h-[90vh]">
-
-      <h2 className="text-xl font-bold text-[#800000] mb-4">
-        Request Details
-      </h2>
-
-      {modalRequests.map((req) => (
-        <div key={req._id} className="mb-6 border-b pb-4">
-
-          {/* BASIC INFO */}
-          <div className="space-y-1 text-sm mb-3">
-            <p><strong>Student:</strong> {req.studentName}</p>
-            <p><strong>Section:</strong> {req.section || "N/A"}</p>
-            <p><strong>Group #:</strong> {req.groupNumber || "N/A"}</p>
-            <p><strong>Date:</strong> {req.date}</p>
-            <p><strong>Activity:</strong> {req.activityTitle}</p>
-            <p><strong>Instructor:</strong> {req.instructor || "N/A"}</p>
-          </div>
-
-          {/* MEMBERS */}
-          <div className="mb-3">
-            <h3 className="font-semibold text-[#800000] text-sm">Members:</h3>
-            {req.members && req.members.length > 0 ? (
-              <ul className="list-disc list-inside text-sm text-gray-700">
-                {req.members.map((member, i) => (
-                  <li key={i}>{member}</li>
-                ))}
-              </ul>
-            ) : (
-              <p className="text-gray-400 text-sm">No members</p>
-            )}
-          </div>
-
-          {/* CART */}
-          <div>
-            <h3 className="font-semibold text-[#800000] text-sm">Requested Items:</h3>
-            {req.cart && req.cart.length > 0 ? (
-              <div className="space-y-1">
-                {req.cart.map((item) => (
-                  <div key={item.id} className="flex justify-between text-sm border-b pb-1">
-                    <span>{item.name}</span>
-                    <span className="text-gray-500">Qty: {item.quantity}</span>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <p className="text-gray-400 text-sm">No items</p>
-            )}
-          </div>
-
-        </div>
-      ))}
-
-      {/* ACTION BUTTONS */}
-      <div className="flex gap-2 mt-4">
-        <Button
-          className="bg-green-600 hover:bg-green-700 w-full"
-          onClick={() => {
-            handleApproveRequest(modalRequests[0]._id)
-            closeModal()
-          }}
-        >
-          Approve
-        </Button>
-
-        <Button
-          className="bg-red-600 hover:bg-red-700 w-full"
-          onClick={() => {
-            handleRejectRequest(modalRequests[0]._id)
-            closeModal()
-          }}
-        >
-          Reject
-        </Button>
-      </div>
-
-      <Button
-        onClick={closeModal}
-        variant="outline"
-        className="mt-2 w-full"
-      >
-        Close
-      </Button>
-
-    </div>
-  </div>
-)}
+ 
 
     </div>
   )

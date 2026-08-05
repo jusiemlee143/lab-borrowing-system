@@ -1,343 +1,659 @@
 "use client"
 
-import Image from "next/image"
-import Link from "next/link"
-import { useState } from "react"
-import {
-  Menu,
-  Loader2,
-  BookOpen,
-  Star,
-  MessageSquare,
-  Users,
-  FlaskConical,
-  HelpCircle,
-  Phone,
-  Info,
-} from "lucide-react"
-
+import { useState, useEffect } from "react"
+import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent } from "@/components/ui/card"
-import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
-import { Badge } from "@/components/ui/badge"
-import { Separator } from "@/components/ui/separator"
+import { Input } from "@/components/ui/input"
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+} from "@/components/ui/card"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
+import { Plus, LogOut, Trash2, Eye, EyeOff, GraduationCap, Lock, IdCard } from "lucide-react"
 
-export default function LandingPage() {
-  const [loading, setLoading] = useState<string | null>(null)
-  const [collapsed, setCollapsed] = useState(false)
+// Types
+type CartItem = {
+  id: string
+  name: string
+  quantity: number
+}
 
-  const handleClick = (key: string) => {
-    setLoading(key)
+type Tool = {
+  _id: string
+  name: string
+  quantity: number
+  status: string
+}
+
+type Teacher = {
+  _id: string
+  name: string
+  email: string
+}
+
+type StudentUser = {
+  _id: string
+  idNumber: string
+  name: string
+  section: string
+  email: string
+}
+
+// ─── DEFAULT CREDENTIALS (temporary, remove when backend is ready) ───
+const DEFAULT_STUDENT: StudentUser = {
+  _id: "std_001",
+  idNumber: "2024-00001",
+  name: "Juan Dela Cruz",
+  section: "H1",
+  email: "juan.delacruz@email.com",
+}
+const DEFAULT_ID = "2024-00001"
+const DEFAULT_PASS = "student123"
+
+export default function BorrowerSlipPage() {
+  const router = useRouter()
+
+  // ─── Auth States ───
+  const [isAuthenticated, setIsAuthenticated] = useState(false)
+  const [student, setStudent] = useState<StudentUser | null>(null)
+  const [idNumber, setIdNumber] = useState("")
+  const [password, setPassword] = useState("")
+  const [showPassword, setShowPassword] = useState(false)
+  const [loginLoading, setLoginLoading] = useState(false)
+  const [loginError, setLoginError] = useState("")
+
+  // ─── Form States ───
+  const [date, setDate] = useState("")
+  const [name, setName] = useState("")
+  const [section, setSection] = useState("")
+  const [groupNumber, setGroupNumber] = useState("")
+  const [activityTitle, setActivityTitle] = useState("")
+  const [instructor, setInstructor] = useState("")
+  const [teachers, setTeachers] = useState<Teacher[]>([])
+  const [members, setMembers] = useState<string[]>([""])
+  const [cart, setCart] = useState<CartItem[]>([])
+  const [tools, setTools] = useState<Tool[]>([])
+  const [loading, setLoading] = useState(true)
+
+  // Check for existing session on mount
+  useEffect(() => {
+    const stored = localStorage.getItem("student_session")
+    if (stored) {
+      try {
+        const parsed = JSON.parse(stored)
+        setStudent(parsed)
+        setIsAuthenticated(true)
+      } catch {
+        localStorage.removeItem("student_session")
+      }
+    }
+  }, [])
+
+  // Auto-date
+  useEffect(() => {
+    const today = new Date().toISOString().split("T")[0]
+    setDate(today)
+  }, [])
+
+  // Pre-fill name & section after login
+  useEffect(() => {
+    if (isAuthenticated && student) {
+      setName(student.name)
+      setSection(student.section || "")
+    }
+  }, [isAuthenticated, student])
+
+  // Fetch teachers dynamically
+  useEffect(() => {
+    if (!isAuthenticated) return
+    const fetchTeachers = async () => {
+      try {
+        const res = await fetch("/api/admin/teachers")
+        const data = await res.json()
+        setTeachers(data)
+      } catch (err) {
+        console.error("Failed to fetch teachers:", err)
+        setTeachers([])
+      }
+    }
+    fetchTeachers()
+  }, [isAuthenticated])
+
+  // Fetch tools from backend
+  useEffect(() => {
+    if (!isAuthenticated) return
+    const fetchTools = async () => {
+      try {
+        setLoading(true)
+        const res = await fetch("/api/lab-in-charge/tools")
+        const data = await res.json()
+        const normalized = Array.isArray(data)
+          ? data.map((t: any) => ({
+              _id: t._id || t.id,
+              name: t.name,
+              quantity: t.quantity,
+              status: t.quantity === 0 ? "unavailable" : "available",
+            }))
+          : []
+        setTools(normalized)
+      } catch (err) {
+        console.error("Failed to fetch tools:", err)
+        setTools([])
+      } finally {
+        setLoading(false)
+      }
+    }
+    fetchTools()
+  }, [isAuthenticated])
+
+  // ─── Login Handler (DEFAULT / HARDCODED) ───
+  const handleLogin = (e: React.FormEvent) => {
+    e.preventDefault()
+    setLoginError("")
+    setLoginLoading(true)
+
+    if (!idNumber.trim() || !password.trim()) {
+      setLoginError("Please enter both ID number and password.")
+      setLoginLoading(false)
+      return
+    }
+
+    // Simulate a short delay for realism
+    setTimeout(() => {
+      if (idNumber.trim() === DEFAULT_ID && password === DEFAULT_PASS) {
+        setStudent(DEFAULT_STUDENT)
+        setIsAuthenticated(true)
+        localStorage.setItem("student_session", JSON.stringify(DEFAULT_STUDENT))
+        setIdNumber("")
+        setPassword("")
+      } else {
+        setLoginError("Invalid ID number or password. Try the default credentials below.")
+      }
+      setLoginLoading(false)
+    }, 600)
   }
 
-  return (
-    <div className="h-screen bg-[#fffaf8] flex overflow-hidden">
+  // ─── Logout Handler ───
+  const handleLogout = () => {
+    setIsAuthenticated(false)
+    setStudent(null)
+    setCart([])
+    setMembers([""])
+    setName("")
+    setSection("")
+    setGroupNumber("")
+    setActivityTitle("")
+    setInstructor("")
+    localStorage.removeItem("student_session")
+  }
 
-      {/* DESKTOP SIDEBAR */}
-      <aside
-        className={`hidden md:flex bg-[#800000] text-[#FFD700] flex-col fixed h-full shadow-xl z-20 transition-all duration-300 ${
-          collapsed ? "w-20" : "w-64"
-        }`}
-      >
-        <LogoSection collapsed={collapsed} />
-        <SidebarMenu
-          loading={loading}
-          setLoading={setLoading}
-          collapsed={collapsed}
-          setCollapsed={setCollapsed}
-        />
-      </aside>
+  // Available tools with cart-adjusted display quantity
+  const availableTools = tools.map((tool) => {
+    const inCart = cart.find((c) => c.id === tool._id)
+    return {
+      ...tool,
+      displayQuantity: tool.quantity - (inCart ? inCart.quantity : 0),
+    }
+  })
 
-      {/* MOBILE SIDEBAR */}
-      <div className="md:hidden fixed top-4 left-4 z-50">
-        <Sheet>
-          <SheetTrigger asChild>
-            <Button size="icon" className="bg-[#800000] hover:bg-[#660000] rounded-xl shadow-lg">
-              <Menu />
-            </Button>
-          </SheetTrigger>
-          <SheetContent side="left" className="p-0 bg-[#800000] text-[#FFD700] w-64">
-            <LogoSection collapsed={false} />
-            <SidebarMenu
-              loading={loading}
-              setLoading={setLoading}
-              collapsed={false}
-              setCollapsed={() => {}}
+  // Add to cart
+  const addToCart = (tool: Tool) => {
+    const inCart = cart.find((c) => c.id === tool._id)
+    const currentQty = inCart ? inCart.quantity : 0
+    if (currentQty + 1 > tool.quantity) {
+      alert("Out of stock!")
+      return
+    }
+    setCart((prev) => {
+      if (inCart) {
+        return prev.map((c) =>
+          c.id === tool._id ? { ...c, quantity: c.quantity + 1 } : c
+        )
+      }
+      return [...prev, { id: tool._id, name: tool.name, quantity: 1 }]
+    })
+  }
+
+  // Update quantity
+  const updateQty = (id: string, qty: number) => {
+    if (qty <= 0) return
+    const tool = tools.find((t) => t._id === id)
+    if (!tool) return
+    if (qty > tool.quantity) {
+      alert("Out of stock!")
+      return
+    }
+    setCart((prev) =>
+      prev.map((c) => (c.id === id ? { ...c, quantity: qty } : c))
+    )
+  }
+
+  // Remove from cart
+  const removeItem = (id: string) => setCart((prev) => prev.filter((c) => c.id !== id))
+
+  // Members
+  const addMember = () => setMembers((p) => [...p, ""])
+  const updateMember = (i: number, v: string) => {
+    const copy = [...members]
+    copy[i] = v
+    setMembers(copy)
+  }
+  const deleteMember = (i: number) => {
+    if (members.length === 1) return
+    setMembers((prev) => prev.filter((_, idx) => idx !== i))
+  }
+
+  // Submit borrower slip as request
+  const handleSubmit = async () => {
+    if (!name || !section || !groupNumber || !activityTitle || !instructor) {
+      alert("Please fill all fields.")
+      return
+    }
+    if (cart.length === 0) {
+      alert("Select at least one tool.")
+      return
+    }
+
+    const payload = {
+      studentId: student?._id,
+      idNumber: student?.idNumber,
+      name,
+      section,
+      groupNumber,
+      date,
+      activityTitle,
+      instructor,
+      members,
+      cart,
+    }
+
+    try {
+      const res = await fetch("/api/student/borrow", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      })
+      if (!res.ok) throw new Error("Submission failed")
+      alert("Borrower slip submitted successfully!")
+      setCart([])
+      router.push("/student")
+    } catch (err) {
+      console.error(err)
+      alert("Failed to submit. Try again.")
+    }
+  }
+
+  // ─── LOGIN SCREEN ───
+  if (!isAuthenticated) {
+    return (
+      <div className="min-h-screen bg-[#fffaf8] flex items-center justify-center p-4">
+        <div className="w-full max-w-md space-y-6">
+          {/* Logo */}
+          <div className="flex flex-col items-center gap-3">
+            <img
+              src="https://i.ibb.co/cbTk669/Untitled-design-removebg-preview.png"
+              alt="logo"
+              className="w-24 h-24 object-contain"
             />
-          </SheetContent>
-        </Sheet>
-      </div>
-
-      {/* MAIN CONTENT */}
-      <main
-        className={`flex-1 w-full flex flex-col overflow-hidden transition-all duration-300 ${
-          collapsed ? "md:ml-20" : "md:ml-64"
-        }`}
-      >
-
-        <div
-          className="fixed inset-0 pointer-events-none opacity-[0.03]"
-          style={{
-            backgroundImage: "radial-gradient(circle, #800000 1px, transparent 1px)",
-            backgroundSize: "24px 24px",
-            left: collapsed ? "5rem" : "16rem",
-          }}
-        />
-
-        <div className="relative flex-1 flex flex-col p-6 md:px-10 md:py-8 max-w-[1800px] mx-auto w-full min-h-0">
-
-          {/* HERO */}
-          <section className="flex-none relative overflow-hidden bg-white rounded-2xl shadow-lg border border-red-100/50 hover:shadow-2xl transition-shadow duration-500">
-
-            <div className="relative px-8 py-8 md:px-12 md:py-10 text-center">
-
-              <Badge className="mb-4 bg-[#FFD700]/15 text-[#800000] border-[#FFD700]/30 font-medium px-3.5 py-1 text-xs">
-                <FlaskConical className="w-3.5 h-3.5 mr-1.5" />
-                Lab Management
-              </Badge>
-
-              <h1 className="text-3xl md:text-[2.5rem] font-bold text-[#800000] mb-3">
-                Lab Borrowing System
-              </h1>
-
-              <p className="text-gray-500 max-w-xl mx-auto mb-8 text-[15px]">
-                Manage student and lab-in-charge accounts, track borrowed items,
-                and streamline laboratory operations efficiently.
-              </p>
-
-              <div className="flex flex-col sm:flex-row gap-3 justify-center">
-
-                <Link href="/student" onClick={() => handleClick("student")}>
-                  <Button
-                    className="bg-[#800000] hover:bg-[#660000] w-full sm:w-auto px-9 py-2.5"
-                    disabled={loading === "student"}
-                  >
-                    {loading === "student" && <Loader2 className="animate-spin mr-2 h-4 w-4" />}
-                    <Users className="w-4 h-4 mr-2" />
-                    Student
-                  </Button>
-                </Link>
-
-                <Link href="/lab-in-charge" onClick={() => handleClick("lab")}>
-                  <Button
-                    variant="outline"
-                    className="border-[#800000]/30 text-[#800000] w-full sm:w-auto px-9 py-2.5"
-                    disabled={loading === "lab"}
-                  >
-                    {loading === "lab" && <Loader2 className="animate-spin mr-2 h-4 w-4" />}
-                    <FlaskConical className="w-4 h-4 mr-2" />
-                    Lab-in-Charge
-                  </Button>
-                </Link>
-
-              </div>
-            </div>
-          </section>
-
-          <Separator className="my-8 bg-red-100/60" />
-
-          {/* QUICK ACCESS */}
-          <div className="mb-6">
-            <h2 className="text-lg font-semibold text-[#800000]">
-              Quick Access
-            </h2>
+            <h1 className="text-2xl font-bold text-[#800000]">Student Portal</h1>
+            <p className="text-sm text-gray-500">Sign in to access the Borrower Slip form</p>
           </div>
 
-          {/* FEATURES */}
-          <section className="flex-1 grid gap-7 sm:grid-cols-2 lg:grid-cols-3 min-h-0 auto-rows-fr">
+          {/* Login Card */}
+          <Card className="shadow-xl rounded-2xl border-0">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-[#800000] text-lg">Log In</CardTitle>
+              <CardDescription>Enter your student credentials below</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <form onSubmit={handleLogin} className="space-y-5">
+                {/* ID Number */}
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-gray-700 flex items-center gap-2">
+                    <IdCard size={14} className="text-[#800000]" />
+                    ID Number
+                  </label>
+                  <Input
+                    placeholder="e.g. 2024-00001"
+                    value={idNumber}
+                    onChange={(e) => setIdNumber(e.target.value)}
+                    className="h-11"
+                    autoComplete="username"
+                  />
+                </div>
 
-            <Link href="/help" className="h-full">
-              <FeatureCard
-                title="Help"
-                desc="Access guides and FAQs to navigate the system smoothly."
-                icon={<BookOpen className="w-6 h-6" />}
-                gradient="from-blue-500 to-blue-600"
-                shadowColor="shadow-blue-500/20"
-                hoverColor="hover:text-blue-600"
-              />
-            </Link>
+                {/* Password */}
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-gray-700 flex items-center gap-2">
+                    <Lock size={14} className="text-[#800000]" />
+                    Password
+                  </label>
+                  <div className="relative">
+                    <Input
+                      type={showPassword ? "text" : "password"}
+                      placeholder="Enter your password"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      className="h-11 pr-10"
+                      autoComplete="current-password"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition"
+                    >
+                      {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                    </button>
+                  </div>
+                </div>
 
-            <Link href="/rate-us" className="h-full">
-              <FeatureCard
-                title="Rate Us"
-                desc="Share your experience and feedback about the system."
-                icon={<Star className="w-6 h-6" />}
-                gradient="from-amber-400 to-orange-500"
-                shadowColor="shadow-amber-500/20"
-                hoverColor="hover:text-amber-600"
-              />
-            </Link>
+                {/* Error */}
+                {loginError && (
+                  <div className="bg-red-50 border border-red-200 text-red-600 text-sm rounded-lg p-3">
+                    {loginError}
+                  </div>
+                )}
 
-            <Link href="/contact" className="h-full">
-              <FeatureCard
-                title="Contact"
-                desc="Reach out anytime for assistance or inquiries."
-                icon={<MessageSquare className="w-6 h-6" />}
-                gradient="from-[#800000] to-[#a00000]"
-                shadowColor="shadow-[#800000]/20"
-                hoverColor="hover:text-[#800000]"
-              />
-            </Link>
+                {/* Submit */}
+                <Button
+                  type="submit"
+                  disabled={loginLoading}
+                  className="w-full h-11 bg-[#800000] text-[#FFD700] hover:bg-[#660000] font-semibold rounded-xl transition-all"
+                >
+                  {loginLoading ? (
+                    <div className="flex items-center gap-2">
+                      <div className="w-4 h-4 border-2 border-t-transparent border-[#FFD700] rounded-full animate-spin" />
+                      Logging in...
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-2">
+                      <GraduationCap size={16} />
+                      Log In
+                    </div>
+                  )}
+                </Button>
+              </form>
+            </CardContent>
+          </Card>
 
-          </section>
+          {/* Default Credentials Box */}
+          <Card className="bg-amber-50 border border-amber-200 rounded-2xl">
+            <CardContent className="p-4 space-y-2">
+              <p className="text-sm font-semibold text-amber-800 flex items-center gap-2">
+                🔑 Default Test Credentials
+              </p>
+              <div className="bg-white/70 rounded-lg p-3 space-y-1 text-sm">
+                <div className="flex justify-between">
+                  <span className="text-gray-600">ID Number:</span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIdNumber(DEFAULT_ID)
+                      navigator.clipboard?.writeText(DEFAULT_ID)
+                    }}
+                    className="font-mono font-bold text-[#800000] hover:underline cursor-pointer"
+                    title="Click to autofill"
+                  >
+                    {DEFAULT_ID}
+                  </button>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Password:</span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setPassword(DEFAULT_PASS)
+                      navigator.clipboard?.writeText(DEFAULT_PASS)
+                    }}
+                    className="font-mono font-bold text-[#800000] hover:underline cursor-pointer"
+                    title="Click to autofill"
+                  >
+                    {DEFAULT_PASS}
+                  </button>
+                </div>
+              </div>
+              <p className="text-xs text-amber-600">
+                Click on the values above to autofill. This is temporary and will be replaced with real authentication.
+              </p>
+            </CardContent>
+          </Card>
+
+          {/* Footer */}
+          <p className="text-center text-xs text-gray-400">
+            Contact your administrator if you forgot your credentials.
+          </p>
         </div>
-      </main>
-    </div>
-  )
-}
-
-/* ================= LOGO ================= */
-
-function LogoSection({ collapsed }: { collapsed?: boolean }) {
-  return (
-    <div className="flex items-center justify-center h-28 border-b border-[#FFD700]/20 bg-white">
-      <Image
-        src="https://i.ibb.co/cbTk669/Untitled-design-removebg-preview.png"
-        alt="Logo"
-        width={collapsed ? 40 : 90}
-        height={70}
-        className="object-contain transition-all duration-300"
-      />
-    </div>
-  )
-}
-
-/* ================= SIDEBAR ================= */
-
-function SidebarMenu({
-  loading,
-  setLoading,
-  collapsed,
-  setCollapsed,
-}: {
-  loading: string | null
-  setLoading: (v: string | null) => void
-  collapsed: boolean
-  setCollapsed: (v: boolean) => void
-}) {
-  const menu = [
-    { name: "Student", href: "/student", icon: Users },
-    { name: "Lab-in-Charge", href: "/lab-in-charge", icon: FlaskConical },
-    { name: "Help", href: "/help", icon: HelpCircle },
-    { name: "Rate Us", href: "/rate-us", icon: Star },
-    { name: "About", href: "/about", icon: Info },
-    { name: "Contact", href: "/contact", icon: Phone },
-  ]
-
-  return (
-    <nav className="flex-1 flex flex-col mt-4 px-3 gap-1">
-
-      {/* TOGGLE */}
-      <div className="flex items-center justify-between px-3 mb-2">
-        {!collapsed && (
-          <span className="text-xs opacity-60 tracking-wide">Menu</span>
-        )}
-
-        <button
-          onClick={() => setCollapsed(!collapsed)}
-          className="text-xs bg-[#FFD700]/10 hover:bg-[#FFD700]/20 px-2 py-1 rounded"
-        >
-          {collapsed ? "→" : "←"}
-        </button>
       </div>
+    )
+  }
 
-      {menu.map((item) => {
-        const Icon = item.icon
-
-        return (
-          <Link
-            key={item.name}
-            href={item.href}
-            onClick={() => setLoading(item.name)}
-            className={`flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm hover:bg-[#FFD700]/15 transition-all duration-200 ${
-              collapsed ? "justify-center" : ""
-            }`}
-          >
-            <Icon className="w-4 h-4 opacity-80" />
-            {!collapsed && item.name}
-          </Link>
-        )
-      })}
-    </nav>
-  )
-}
-
-/* ================= FEATURE CARD ================= */
-
-function FeatureCard({
-  title,
-  desc,
-  icon,
-  gradient,
-  shadowColor,
-  hoverColor,
-}: {
-  title: string
-  desc: string
-  icon: React.ReactNode
-  gradient: string
-  shadowColor: string
-  hoverColor: string
-}) {
-  return (
-    <Card
-      className="
-        h-full rounded-2xl border border-gray-100
-        shadow-sm
-        transition-all duration-300 ease-out
-        cursor-pointer group overflow-hidden
-        hover:shadow-2xl hover:-translate-y-2 hover:scale-[1.02]
-        hover:border-[#800000]/20
-        relative
-      "
-    >
-      {/* glow */}
-      <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500">
-        <div className="absolute -top-10 -right-10 w-32 h-32 bg-[#800000]/10 blur-2xl rounded-full" />
-        <div className="absolute -bottom-10 -left-10 w-32 h-32 bg-yellow-400/10 blur-2xl rounded-full" />
+  // ─── LOADING SCREEN ───
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-[#fffaf8]">
+        <div className="w-12 h-12 border-4 border-t-[#800000] border-gray-200 rounded-full animate-spin"></div>
       </div>
+    )
+  }
 
-      <CardContent className="p-8 flex flex-col items-center text-center h-full relative">
+  // ─── MAIN BORROWER SLIP SCREEN ───
+  return (
+    <div className="min-h-screen bg-[#fffaf8] p-4 sm:p-6 overflow-x-hidden">
+      <div className="max-w-7xl mx-auto space-y-6">
+        {/* HEADER */}
+        <Card className="shadow-lg rounded-2xl">
+          <CardContent className="flex flex-col md:flex-row items-center justify-between gap-4 p-6">
+            <div className="flex items-center gap-4 min-w-0">
+              <img
+                src="https://i.ibb.co/cbTk669/Untitled-design-removebg-preview.png"
+                alt="logo"
+                className="w-16 h-16 sm:w-20 sm:h-20 object-contain shrink-0"
+              />
+              <div className="min-w-0">
+                <h1 className="text-lg sm:text-2xl font-bold text-[#800000] leading-tight">
+                  STUDENT&apos;S BORROWER SLIP
+                </h1>
+                <div className="flex items-center gap-2 mt-1">
+                  <div className="w-2 h-2 rounded-full bg-green-500" />
+                  <span className="text-xs sm:text-sm text-gray-500 truncate">
+                    Logged in as <span className="font-semibold text-gray-700">{student?.name}</span> &middot; {student?.idNumber}
+                  </span>
+                </div>
+              </div>
+            </div>
+            <div className="flex items-center gap-2 w-full md:w-auto">
+              <Button
+                variant="outline"
+                onClick={() => router.push("/student")}
+                className="gap-2 border-[#800000] text-[#800000] hover:bg-[#800000] hover:text-[#FFD700] flex-1 md:flex-none"
+              >
+                <LogOut size={16} /> Exit
+              </Button>
+              <Button
+                variant="outline"
+                onClick={handleLogout}
+                className="gap-2 border-red-400 text-red-500 hover:bg-red-500 hover:text-white flex-1 md:flex-none"
+              >
+                <LogOut size={16} /> Log Out
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
 
-        <div
-          className={`
-            w-18 h-18 rounded-2xl
-            bg-gradient-to-br ${gradient}
-            ${shadowColor}
-            shadow-lg
-            flex items-center justify-center
-            text-white mb-6
-            transition-all duration-300
-            group-hover:scale-110 group-hover:rotate-3
-          `}
-        >
-          {icon}
-        </div>
+        {/* STUDENT INFO */}
+        <Card className="rounded-2xl shadow-md">
+          <CardHeader>
+            <CardTitle className="text-[#800000]">Student Information</CardTitle>
+          </CardHeader>
+          <CardContent className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <Input
+              placeholder="Name"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+            />
+            <Select onValueChange={setSection} value={section}>
+              <SelectTrigger>
+                <SelectValue placeholder="Select Section" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="H1">H1</SelectItem>
+                <SelectItem value="H2">H2</SelectItem>
+                <SelectItem value="H3">H3</SelectItem>
+              </SelectContent>
+            </Select>
+            <Input
+              type="number"
+              placeholder="Group #"
+              value={groupNumber}
+              onChange={(e) => setGroupNumber(e.target.value)}
+            />
+            <Input type="date" value={date} disabled />
+            <div className="sm:col-span-2 lg:col-span-4">
+              <Input
+                placeholder="Activity Title"
+                value={activityTitle}
+                onChange={(e) => setActivityTitle(e.target.value)}
+              />
+            </div>
+          </CardContent>
+        </Card>
 
-        <h3 className="font-bold text-[#800000] text-xl mb-2 group-hover:tracking-wide transition-all">
-          {title}
-        </h3>
+        {/* AVAILABLE TOOLS */}
+        <Card className="rounded-2xl shadow-md">
+          <CardHeader>
+            <CardTitle className="text-[#800000]">Available Tools</CardTitle>
+          </CardHeader>
+          <CardContent className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {availableTools.map((tool) => (
+              <div
+                key={tool._id}
+                className="border rounded-xl p-4 flex items-center justify-between"
+              >
+                <div>
+                  <p className="font-semibold">{tool.name}</p>
+                  <p className="text-xs text-gray-500">
+                    Stock: {tool.displayQuantity}
+                  </p>
+                </div>
+                <Button
+                  size="sm"
+                  onClick={() => addToCart(tool)}
+                  className="bg-[#800000] text-[#FFD700] hover:bg-[#660000]"
+                  disabled={tool.displayQuantity <= 0}
+                >
+                  Add
+                </Button>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
 
-        <p className="text-gray-500 text-sm leading-relaxed mb-6 px-2">
-          {desc}
-        </p>
+        {/* CART */}
+        <Card className="rounded-2xl shadow-md">
+          <CardHeader>
+            <CardTitle className="text-[#800000]">Selected Tools</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {cart.length === 0 && (
+              <p className="text-sm text-gray-500">No tools selected yet.</p>
+            )}
+            {cart.map((item) => (
+              <div
+                key={item.id}
+                className="flex flex-wrap sm:flex-nowrap items-center gap-3 border rounded-xl p-3"
+              >
+                <div className="flex-1 font-medium min-w-[120px]">
+                  {item.name}
+                </div>
+                <Input
+                  type="number"
+                  className="w-24"
+                  value={item.quantity}
+                  onChange={(e) => updateQty(item.id, Number(e.target.value))}
+                />
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  onClick={() => removeItem(item.id)}
+                >
+                  <Trash2 className="text-red-500" size={16} />
+                </Button>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
 
-        <div
-          className={`mt-auto flex items-center gap-2 text-sm font-medium text-gray-400 ${hoverColor} transition-all duration-300 group-hover:gap-3 group-hover:text-[#800000]`}
-        >
-          <span>Learn more</span>
+        {/* MEMBERS */}
+        <Card className="rounded-2xl shadow-md">
+          <CardHeader className="flex flex-row justify-between items-center">
+            <CardTitle className="text-[#800000]">Name of Members</CardTitle>
+            <Button
+              onClick={addMember}
+              className="bg-[#800000] text-[#FFD700]"
+            >
+              <Plus size={16} /> Add Name
+            </Button>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {members.map((m, i) => (
+              <div key={i} className="flex gap-2 items-center">
+                <Input
+                  placeholder={`Member ${i + 1}`}
+                  value={m}
+                  onChange={(e) => updateMember(i, e.target.value)}
+                />
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  disabled={members.length === 1}
+                  onClick={() => deleteMember(i)}
+                >
+                  <Trash2
+                    size={16}
+                    className={
+                      members.length === 1 ? "text-gray-300" : "text-red-500"
+                    }
+                  />
+                </Button>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
 
-          <svg
-            className="w-4 h-4 transition-transform duration-300 group-hover:translate-x-1"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-            strokeWidth={2}
-          >
-            <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
-          </svg>
-        </div>
-      </CardContent>
-    </Card>
+        {/* INSTRUCTOR & SUBMIT */}
+        <Card className="rounded-2xl shadow-md">
+          <CardContent className="p-6 flex flex-col sm:flex-row items-center justify-between gap-4">
+            <Select onValueChange={setInstructor} value={instructor}>
+              <SelectTrigger className="w-full sm:w-64">
+                <SelectValue placeholder="Select Instructor" />
+              </SelectTrigger>
+              <SelectContent>
+                {teachers.map((t) => (
+                  <SelectItem key={t._id} value={t._id}>
+                    {t.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Button
+              onClick={handleSubmit}
+              className="w-full sm:w-auto bg-[#800000] text-[#FFD700] hover:bg-[#660000]"
+            >
+              SUBMIT
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    </div>
   )
 }

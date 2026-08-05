@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Search, LogOut, FileText } from "lucide-react"
+import { Search, LogOut, FileText, Lock, User, Eye, EyeOff } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import {
@@ -20,6 +20,11 @@ import {
 import { useRouter } from "next/navigation"
 import { Spinner } from "@/components/ui/spinner"
 
+const DEFAULT_CREDENTIALS = {
+  studentId: "student001",
+  password: "password123",
+}
+
 export default function StudentPage() {
   const router = useRouter()
   const [search, setSearch] = useState("")
@@ -27,19 +32,47 @@ export default function StudentPage() {
   const [loading, setLoading] = useState(true)
   const [tools, setTools] = useState<any[]>([])
 
-  // Fetch real-time tools from backend
-    const fetchTools = async () => {
+  // Auth state
+  const [isLoggedIn, setIsLoggedIn] = useState(false)
+  const [loginId, setLoginId] = useState("")
+  const [loginPassword, setLoginPassword] = useState("")
+  const [showPassword, setShowPassword] = useState(false)
+  const [loginError, setLoginError] = useState("")
+  const [isLoggingIn, setIsLoggingIn] = useState(false)
+
+  // Check session on mount
+  useEffect(() => {
+    const session = sessionStorage.getItem("studentSession")
+    if (session) {
+      try {
+        const parsed = JSON.parse(session)
+        if (parsed.loggedIn) setIsLoggedIn(true)
+      } catch {
+        sessionStorage.removeItem("studentSession")
+      }
+    }
+  }, [])
+
+  // Fetch tools only when logged in
+  useEffect(() => {
+    if (isLoggedIn) {
+      fetchTools()
+    } else {
+      setLoading(false)
+    }
+  }, [isLoggedIn])
+
+  const fetchTools = async () => {
     try {
       setLoading(true)
       const res = await fetch("/api/lab-in-charge/tools")
       const data = await res.json()
-      // Normalize data for STUDENTS: only "available" or "unavailable"
       const normalizedTools = Array.isArray(data)
         ? data.map((t: any) => ({
             id: t._id || t.id,
             name: t.name,
             quantity: t.quantity,
-            status: t.quantity === 0 ? "unavailable" : "available", // <- IGNORE low stock
+            status: t.quantity === 0 ? "unavailable" : "available",
           }))
         : []
       setTools(normalizedTools)
@@ -51,9 +84,35 @@ export default function StudentPage() {
     }
   }
 
-  useEffect(() => {
-    fetchTools()
-  }, [])
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setLoginError("")
+    setIsLoggingIn(true)
+
+    await new Promise((resolve) => setTimeout(resolve, 800))
+
+    if (
+      loginId.trim() === DEFAULT_CREDENTIALS.studentId &&
+      loginPassword === DEFAULT_CREDENTIALS.password
+    ) {
+      sessionStorage.setItem(
+        "studentSession",
+        JSON.stringify({ loggedIn: true, studentId: loginId.trim() })
+      )
+      setIsLoggedIn(true)
+      setLoginId("")
+      setLoginPassword("")
+    } else {
+      setLoginError("Invalid Student ID or Password. Please try again.")
+    }
+
+    setIsLoggingIn(false)
+  }
+
+  const handleExit = () => {
+    sessionStorage.removeItem("studentSession")
+    router.push("/")
+  }
 
   const filteredTools = tools.filter((tool) => {
     const matchesSearch = tool.name
@@ -63,6 +122,142 @@ export default function StudentPage() {
     return matchesSearch && matchesFilter
   })
 
+  // ─── LOGIN SCREEN ───
+  if (!isLoggedIn) {
+    return (
+      <div className="min-h-screen bg-[#fffaf8] flex items-center justify-center p-4 relative">
+        <div className="fixed inset-0 overflow-hidden pointer-events-none">
+          <div className="absolute -top-40 -right-40 w-96 h-96 bg-[#800000]/5 rounded-full blur-3xl" />
+          <div className="absolute -bottom-40 -left-40 w-96 h-96 bg-[#FFD700]/10 rounded-full blur-3xl" />
+        </div>
+
+        {/* Exit button - upper left */}
+        <Button
+          onClick={handleExit}
+          variant="outline"
+          className="absolute top-6 right-6 flex items-center gap-2 border-[#800000] text-[#800000] hover:bg-[#800000] hover:text-[#FFD700] z-10"
+        >
+          <LogOut size={16} />
+          Exit
+        </Button>
+
+        <div className="relative w-full max-w-md">
+          <div className="text-center mb-8">
+            <img
+              src="https://i.ibb.co/cbTk669/Untitled-design-removebg-preview.png"
+              alt="logo"
+              className="w-24 h-24 object-contain mx-auto mb-4"
+            />
+            <h1 className="text-2xl font-bold text-[#800000]">Student Portal</h1>
+            <p className="text-gray-500 mt-1 text-sm">
+              Sign in to access lab tools & equipment
+            </p>
+          </div>
+
+          <Card className="shadow-2xl rounded-2xl border border-gray-100 overflow-hidden">
+            <div className="h-2 bg-gradient-to-r from-[#800000] via-[#a00000] to-[#800000]" />
+            <CardContent className="p-8">
+              <form onSubmit={handleLogin} className="space-y-5">
+                <div className="space-y-2">
+                  <label className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+                    <User size={14} className="text-[#800000]" />
+                    Student ID
+                  </label>
+                  <Input
+                    type="text"
+                    placeholder="Enter your Student ID"
+                    value={loginId}
+                    onChange={(e) => {
+                      setLoginId(e.target.value)
+                      setLoginError("")
+                    }}
+                    className="h-12 border-gray-200 focus:border-[#800000] focus:ring-[#800000]/20 rounded-xl text-base"
+                    disabled={isLoggingIn}
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+                    <Lock size={14} className="text-[#800000]" />
+                    Password
+                  </label>
+                  <div className="relative">
+                    <Input
+                      type={showPassword ? "text" : "password"}
+                      placeholder="Enter your password"
+                      value={loginPassword}
+                      onChange={(e) => {
+                        setLoginPassword(e.target.value)
+                        setLoginError("")
+                      }}
+                      className="pr-12 h-12 border-gray-200 focus:border-[#800000] focus:ring-[#800000]/20 rounded-xl text-base"
+                      disabled={isLoggingIn}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+                      tabIndex={-1}
+                    >
+                      {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                    </button>
+                  </div>
+                </div>
+
+                {loginError && (
+                  <div className="bg-red-50 border border-red-200 text-red-700 text-sm px-4 py-3 rounded-xl flex items-start gap-2">
+                    <span className="mt-0.5">⚠</span>
+                    {loginError}
+                  </div>
+                )}
+
+                <Button
+                  type="submit"
+                  disabled={isLoggingIn || !loginId.trim() || !loginPassword}
+                  className="w-full h-12 bg-[#800000] text-[#FFD700] hover:bg-[#660000] rounded-xl text-base font-semibold transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {isLoggingIn ? (
+                    <span className="flex items-center justify-center gap-2">
+                      <Spinner className="w-5 h-5 border-2 border-[#FFD700]/30 border-t-[#FFD700]" />
+                      Signing in...
+                    </span>
+                  ) : (
+                    "Sign In"
+                  )}
+                </Button>
+              </form>
+
+              <div className="mt-6 p-4 bg-amber-50 border border-amber-200 rounded-xl">
+                <p className="text-xs font-semibold text-amber-800 mb-2">
+                  🔑 Default Credentials (for testing):
+                </p>
+                <div className="space-y-1 text-xs text-amber-700 font-mono">
+                  <p>
+                    Student ID:{" "}
+                    <span className="bg-amber-100 px-1.5 py-0.5 rounded">
+                      {DEFAULT_CREDENTIALS.studentId}
+                    </span>
+                  </p>
+                  <p>
+                    Password:{" "}
+                    <span className="bg-amber-100 px-1.5 py-0.5 rounded">
+                      {DEFAULT_CREDENTIALS.password}
+                    </span>
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <p className="text-center text-xs text-gray-400 mt-6">
+            © 2025 Student Lab Portal • All rights reserved
+          </p>
+        </div>
+      </div>
+    )
+  }
+
+  // ─── LOADING ───
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-[#fffaf8]">
@@ -75,6 +270,7 @@ export default function StudentPage() {
   const availableTools = tools.filter((t) => t.status === "available").length
   const unavailableTools = tools.filter((t) => t.status === "unavailable").length
 
+  // ─── DASHBOARD ───
   return (
     <div className="min-h-screen bg-[#fffaf8]">
       {/* HEADER */}
@@ -90,7 +286,7 @@ export default function StudentPage() {
           </div>
 
           <Button
-            onClick={() => router.push("/")}
+            onClick={handleExit}
             variant="outline"
             className="flex items-center gap-2 border-[#800000] text-[#800000] hover:bg-[#800000] hover:text-[#FFD700]"
           >

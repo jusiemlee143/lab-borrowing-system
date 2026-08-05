@@ -37,11 +37,8 @@ interface Props {
   onView: (request: Request) => void;
 
   onApprove: (id: string) => void;
-
   onReject: (id: string) => void;
-
   onRelease: (id: string) => void;
-
   onReturn: (id: string) => void;
 }
 
@@ -56,26 +53,17 @@ export default function RequestTable({
   return (
     <div className="overflow-x-auto rounded-lg border">
 
-      <table className="w-full">
+      <table className="w-full text-sm">
 
         <thead className="bg-gray-100">
-
           <tr>
-
-            <th className="text-left p-3">Student</th>
-
-            <th className="text-left p-3">Activity</th>
-
-            <th className="text-left p-3">Date</th>
-
-            <th className="text-left p-3">Status</th>
-
-            <th className="text-center p-3">View</th>
-
-            <th className="text-center p-3">Actions</th>
-
+            <th className="p-3 text-left">Student</th>
+            <th className="p-3 text-left">Section</th>
+            <th className="p-3 text-left">Activity</th>
+            <th className="p-3 text-left">Date</th>
+            <th className="p-3 text-center">Status</th>
+            <th className="p-3 text-right">Actions</th>
           </tr>
-
         </thead>
 
         <tbody>
@@ -84,57 +72,51 @@ export default function RequestTable({
 
             <tr
               key={request._id}
-              className="border-t hover:bg-gray-50"
+              className="border-t hover:bg-gray-50 transition-colors"
             >
 
               <td className="p-3 font-medium">
-
                 {request.studentName}
-
               </td>
 
               <td className="p-3">
+                {request.section || "-"}
+              </td>
 
+              <td className="p-3">
                 {request.activityTitle}
-
               </td>
 
               <td className="p-3">
-
                 {request.date}
-
-              </td>
-
-              <td className="p-3">
-
-                <RequestStatusBadge
-                  status={request.status}
-                />
-
               </td>
 
               <td className="p-3 text-center">
-
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => onView(request)}
-                >
-                  View
-                </Button>
-
+                <RequestStatusBadge
+                  status={request.status}
+                />
               </td>
 
               <td className="p-3">
+                <div className="flex justify-end items-center gap-2 flex-wrap">
 
-                <RequestActions
-                  status={request.status}
-                  onApprove={() => onApprove(request._id)}
-                  onReject={() => onReject(request._id)}
-                  onRelease={() => onRelease(request._id)}
-                  onReturn={() => onReturn(request._id)}
-                />
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => onView(request)}
+                  >
+                    View
+                  </Button>
 
+                  <RequestActions
+                    status={request.status}
+                    onApprove={() => onApprove(request._id)}
+                    onReject={() => onReject(request._id)}
+                    onRelease={() => onRelease(request._id)}
+                    onReturn={() => onReturn(request._id)}
+                  />
+
+                </div>
               </td>
 
             </tr>

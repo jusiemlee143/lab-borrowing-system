@@ -33,6 +33,21 @@ interface Tool {
   status: "available" | "low stock" | "unavailable"
 }
 
+interface DashboardStats {
+  totalTools: number
+  availableTools: number
+  lowStock: number
+  unavailable: number
+
+  pending: number
+  approved: number
+ released: number
+  returned: number
+  rejected: number
+
+  borrowedToday: number
+  returnedToday: number
+}
 
 
 
@@ -42,6 +57,22 @@ export default function LabInChargePage() {
   const [loading, setLoading] = useState(true)
 
   const [tools, setTools] = useState<Tool[]>([])
+  
+  const [stats, setStats] = useState<DashboardStats>({
+  totalTools: 0,
+  availableTools: 0,
+  lowStock: 0,
+  unavailable: 0,
+
+  pending: 0,
+  approved: 0,
+  released: 0,
+  returned: 0,
+  rejected: 0,
+
+  borrowedToday: 0,
+  returnedToday: 0,
+})
   
 
   const [search, setSearch] = useState("")
@@ -64,9 +95,11 @@ export default function LabInChargePage() {
     try {
       setLoading(true)
       const toolsRes = await fetch("/api/lab-in-charge/tools")
+      const dashboardRes = await fetch("/api/lab-in-charge/dashboard")
       
 
       const toolsData = await toolsRes.json()
+      const dashboardData = await dashboardRes.json()
       
 
       // Normalize tools with proper status type
@@ -85,6 +118,7 @@ export default function LabInChargePage() {
         : []
 
       setTools(normalizedTools)
+      setStats(dashboardData)
      
     } catch (err) {
       console.error("Fetch error:", err)
@@ -159,8 +193,8 @@ export default function LabInChargePage() {
     return matchesSearch && matchesFilter
   })
 
-const pendingCount = 0
-  const lowStockCount = tools.filter(t => t.quantity < 5 && t.quantity > 0).length
+
+  
 
   if (loading) {
     return (
@@ -221,24 +255,140 @@ const pendingCount = 0
                 <AlertCircle className="text-[#FFD700] w-5 h-5" />
               </div>
               <div className="flex items-end gap-2">
-                <span className="text-3xl font-bold text-[#FFD700]">{lowStockCount}</span>
+                <span className="text-3xl font-bold text-[#FFD700]">{stats.lowStock}</span>
                 <span className="text-gray-400 text-sm mb-1">items</span>
               </div>
             </CardContent>
           </Card>
-
           <Card className="bg-white shadow-md rounded-xl border-l-4 border-blue-500 h-32 flex flex-col justify-between">
-            <CardContent className="flex flex-col justify-between h-full p-6">
-              <div className="flex items-center justify-between">
-                <h3 className="text-gray-600 font-medium text-sm uppercase">Pending Requests</h3>
-                <User className="text-blue-500 w-5 h-5" />
-              </div>
-              <div className="flex items-end gap-2">
-                <span className="text-3xl font-bold text-blue-500">{pendingCount}</span>
-                <span className="text-gray-400 text-sm mb-1">students</span>
-              </div>
-            </CardContent>
-          </Card>
+  <CardContent className="flex flex-col justify-between h-full p-6">
+    <div className="flex items-center justify-between">
+      <h3 className="text-gray-600 font-medium text-sm uppercase">
+        Pending
+      </h3>
+
+      <User className="text-blue-500 w-5 h-5" />
+    </div>
+
+    <div className="flex items-end gap-2">
+      <span className="text-3xl font-bold text-blue-500">
+        {stats.pending}
+      </span>
+
+      <span className="text-gray-400 text-sm mb-1">
+        requests
+      </span>
+    </div>
+  </CardContent>
+</Card>
+
+          <Card className="bg-white shadow-md rounded-xl border-l-4 border-green-500 h-32 flex flex-col justify-between">
+  <CardContent className="flex flex-col justify-between h-full p-6">
+    <div className="flex items-center justify-between">
+      <h3 className="text-gray-600 font-medium text-sm uppercase">
+        Approved
+      </h3>
+      <User className="text-green-500 w-5 h-5" />
+    </div>
+
+    <div className="flex items-end gap-2">
+      <span className="text-3xl font-bold text-green-500">
+        {stats.approved}
+      </span>
+      <span className="text-gray-400 text-sm mb-1">requests</span>
+    </div>
+  </CardContent>
+</Card>
+
+<Card className="bg-white shadow-md rounded-xl border-l-4 border-indigo-500 h-32 flex flex-col justify-between">
+  <CardContent className="flex flex-col justify-between h-full p-6">
+    <div className="flex items-center justify-between">
+      <h3 className="text-gray-600 font-medium text-sm uppercase">
+        Released
+      </h3>
+      <Package className="text-indigo-500 w-5 h-5" />
+    </div>
+
+    <div className="flex items-end gap-2">
+      <span className="text-3xl font-bold text-indigo-500">
+        {stats.released}
+      </span>
+      <span className="text-gray-400 text-sm mb-1">borrowed</span>
+    </div>
+  </CardContent>
+</Card>
+
+<Card className="bg-white shadow-md rounded-xl border-l-4 border-purple-500 h-32 flex flex-col justify-between">
+  <CardContent className="flex flex-col justify-between h-full p-6">
+    <div className="flex items-center justify-between">
+      <h3 className="text-gray-600 font-medium text-sm uppercase">
+        Returned
+      </h3>
+      <Package className="text-purple-500 w-5 h-5" />
+    </div>
+
+    <div className="flex items-end gap-2">
+      <span className="text-3xl font-bold text-purple-500">
+        {stats.returned}
+      </span>
+      <span className="text-gray-400 text-sm mb-1">completed</span>
+    </div>
+  </CardContent>
+</Card>
+
+<Card className="bg-white shadow-md rounded-xl border-l-4 border-red-500 h-32 flex flex-col justify-between">
+  <CardContent className="flex flex-col justify-between h-full p-6">
+    <div className="flex items-center justify-between">
+      <h3 className="text-gray-600 font-medium text-sm uppercase">
+        Rejected
+      </h3>
+      <AlertCircle className="text-red-500 w-5 h-5" />
+    </div>
+
+    <div className="flex items-end gap-2">
+      <span className="text-3xl font-bold text-red-500">
+        {stats.rejected}
+      </span>
+      <span className="text-gray-400 text-sm mb-1">requests</span>
+    </div>
+  </CardContent>
+</Card>
+
+<Card className="bg-white shadow-md rounded-xl border-l-4 border-cyan-500 h-32 flex flex-col justify-between">
+  <CardContent className="flex flex-col justify-between h-full p-6">
+    <div className="flex items-center justify-between">
+      <h3 className="text-gray-600 font-medium text-sm uppercase">
+        Borrowed Today
+      </h3>
+      <Package className="text-cyan-500 w-5 h-5" />
+    </div>
+
+    <div className="flex items-end gap-2">
+      <span className="text-3xl font-bold text-cyan-500">
+        {stats.borrowedToday}
+      </span>
+      <span className="text-gray-400 text-sm mb-1">today</span>
+    </div>
+  </CardContent>
+</Card>
+
+<Card className="bg-white shadow-md rounded-xl border-l-4 border-emerald-500 h-32 flex flex-col justify-between">
+  <CardContent className="flex flex-col justify-between h-full p-6">
+    <div className="flex items-center justify-between">
+      <h3 className="text-gray-600 font-medium text-sm uppercase">
+        Returned Today
+      </h3>
+      <Package className="text-emerald-500 w-5 h-5" />
+    </div>
+
+    <div className="flex items-end gap-2">
+      <span className="text-3xl font-bold text-emerald-500">
+        {stats.returnedToday}
+      </span>
+      <span className="text-gray-400 text-sm mb-1">today</span>
+    </div>
+  </CardContent>
+</Card>
         </div>
 
         <RequestsManager />

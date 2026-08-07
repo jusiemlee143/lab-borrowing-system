@@ -1,5 +1,7 @@
 "use client"
 import RequestsManager from "@/components/requests/RequestsManager";
+import EditToolModal from "@/components/EditToolModal";
+import DeleteToolDialog from "@/components/DeleteToolDialog";
 import { useState, useEffect } from "react"
 import { 
   Search, LogOut, Plus, Trash2, User, 
@@ -22,6 +24,7 @@ import {
 } from "@/components/ui/select"
 import { useRouter } from "next/navigation"
 import { Spinner } from "@/components/ui/spinner"
+import { toast } from "sonner"
 
 // ----------------------
 // TypeScript Interfaces
@@ -57,6 +60,8 @@ export default function LabInChargePage() {
   const [loading, setLoading] = useState(true)
 
   const [tools, setTools] = useState<Tool[]>([])
+  const [selectedTool, setSelectedTool] = useState<Tool | null>(null)
+  const [editModalOpen, setEditModalOpen] = useState(false)
   
   const [stats, setStats] = useState<DashboardStats>({
   totalTools: 0,
@@ -81,6 +86,8 @@ export default function LabInChargePage() {
   const [isAddingItem, setIsAddingItem] = useState(false)
   const [newItemName, setNewItemName] = useState("")
   const [newItemQty, setNewItemQty] = useState("")
+  const [deleteOpen, setDeleteOpen] = useState(false)
+  
 
   // Modal state
   
@@ -135,50 +142,61 @@ export default function LabInChargePage() {
   }
 
   const handleAddItem = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!newItemName || !newItemQty) return
+  e.preventDefault();
 
-    try {
-      const res = await fetch("/api/lab-in-charge/tools", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name: newItemName,
-          quantity: parseInt(newItemQty),
-        }),
-      })
-      const newItem = await res.json()
-
-      const formattedItem: Tool = {
-        _id: newItem._id,
-        name: newItem.name,
-        quantity: newItem.quantity,
-        status:
-          newItem.quantity === 0
-            ? "unavailable"
-            : newItem.quantity < 5
-            ? "low stock"
-            : "available",
-      }
-
-      setTools(prev => [...prev, formattedItem])
-      setNewItemName("")
-      setNewItemQty("")
-      setIsAddingItem(false)
-    } catch (err) {
-      console.error("Add error:", err)
-    }
+  if (!newItemName.trim() || !newItemQty) {
+    toast.error("Please fill in all fields.");
+    return;
   }
 
-  const handleDeleteItem = async (id: string) => {
-    if (!confirm("Are you sure you want to delete this item from inventory?")) return
-    try {
-      await fetch(`/api/lab-in-charge/tools/${id}`, { method: "DELETE" })
-      setTools(prev => prev.filter(t => t._id !== id))
-    } catch (err) {
-      console.error("Delete error:", err)
+  try {
+    const res = await fetch("/api/lab-in-charge/tools", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        name: newItemName.trim(),
+        quantity: parseInt(newItemQty),
+      }),
+    });
+
+    // Read the response from the API
+    const data = await res.json();
+
+    // If the server returned an error (duplicate tool, etc.)
+    if (!res.ok) {
+      toast.error(data.message || "Unable to add tool.");
+      return;
     }
+
+    // Refresh inventory
+    await fetchData();
+
+    // Show success only if the tool was actually added
+    toast.success("Tool added successfully!");
+
+    // Clear form
+    setNewItemName("");
+    setNewItemQty("");
+    setIsAddingItem(false);
+
+  } catch (err) {
+    console.error(err);
+    toast.error("Unable to add tool.");
   }
+  }
+    const handleEdit = (tool: Tool) => {
+    setSelectedTool(tool)
+    setEditModalOpen(true)
+  }
+
+  const handleDeleteItem = (tool: Tool) => {
+  setSelectedTool(tool);
+  setDeleteOpen(true);
+};
+
+
 
   
 
@@ -498,16 +516,30 @@ export default function LabInChargePage() {
                           </span>
                         </td>
                         <td className="py-3 px-4 text-right">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="text-red-500 hover:text-red-700 hover:bg-red-50 p-2"
-                            onClick={() => handleDeleteItem(tool._id)}
-                            title="Delete Item"
-                          >
-                            <Trash2 size={16} />
-                          </Button>
-                        </td>
+  <div className="flex justify-end gap-2">
+
+    <Button
+      variant="ghost"
+      size="sm"
+      className="text-blue-600 hover:text-blue-700 hover:bg-blue-50 p-2"
+      onClick={() => handleEdit(tool)}
+      title="Edit Tool"
+    >
+      ✏️
+    </Button>
+
+    <Button
+      variant="ghost"
+      size="sm"
+      className="text-red-500 hover:text-red-700 hover:bg-red-50 p-2"
+      onClick={() => handleDeleteItem(tool)}
+      title="Delete Tool"
+    >
+      <Trash2 size={16} />
+    </Button>
+
+  </div>
+</td>
                       </tr>
                     ))
                   ) : (
@@ -522,6 +554,27 @@ export default function LabInChargePage() {
             </div>
           </CardContent>
         </Card>
+
+        <EditToolModal
+        open={editModalOpen}
+        tool={selectedTool}
+        onClose={() => setEditModalOpen(false)}
+        onSaved={fetchData}
+        
+/>
+<DeleteToolDialog
+  open={deleteOpen}
+  tool={selectedTool}
+  onClose={() => {
+    setDeleteOpen(false);
+    setSelectedTool(null);
+  }}
+  onDeleted={async () => {
+    await fetchData();
+    setDeleteOpen(false);
+    setSelectedTool(null);
+  }}
+/>
       </main>
 
  

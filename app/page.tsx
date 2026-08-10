@@ -190,18 +190,35 @@ export default function LandingPage() {
 
 function LogoSection({ collapsed }: { collapsed?: boolean }) {
   return (
-    <div className="flex items-center justify-center h-28 border-b border-[#FFD700]/20 bg-white">
-      <Image
-        src="https://i.ibb.co/cbTk669/Untitled-design-removebg-preview.png"
-        alt="Logo"
-        width={collapsed ? 40 : 90}
-        height={70}
-        className="object-contain transition-all duration-300"
-      />
+    <div
+      className={`flex items-center justify-center transition-all duration-300 ${
+        collapsed ? "px-2 py-4" : "px-4 py-6"
+      }`}
+    >
+      <div
+        className={`relative flex items-center justify-center bg-white rounded-2xl border-2 border-[#FFD700] shadow-lg transition-all duration-300 ${
+          collapsed
+            ? "w-14 h-14 p-1.5"
+            : "w-full max-w-[210x] h-[200px] px-4 py-5"
+        }`}
+      >
+        {/* Subtle gold glow */}
+        <div className="absolute inset-0 rounded-2xl bg-[#FFD700]/10 pointer-events-none" />
+
+        <Image
+          src="/logo/OfficialLogo.png"
+          alt="Lab Borrowing System Logo"
+          width={collapsed ? 48 : 170}
+          height={collapsed ? 48 : 100}
+          priority
+          className={`relative z-10 object-contain transition-all duration-300 ${
+            collapsed ? "w-11 h-11" : "w-[170px] h-auto"
+          }`}
+        />
+      </div>
     </div>
   )
 }
-
 /* ================= SIDEBAR ================= */
 
 function SidebarMenu({
@@ -216,48 +233,213 @@ function SidebarMenu({
   setCollapsed: (v: boolean) => void
 }) {
   const menu = [
-    { name: "Student", href: "/student", icon: Users },
-    { name: "Lab-in-Charge", href: "/lab-in-charge", icon: FlaskConical },
-    { name: "Help", href: "/help", icon: HelpCircle },
-    { name: "Rate Us", href: "/rate-us", icon: Star },
-    { name: "About", href: "/about", icon: Info },
-    { name: "Contact", href: "/contact", icon: Phone },
+    {
+      name: "Student",
+      href: "/student",
+      icon: Users,
+    },
+    {
+      name: "Lab-in-Charge",
+      href: "/lab-in-charge",
+      icon: FlaskConical,
+    },
+    {
+      name: "Help",
+      href: "/help",
+      icon: HelpCircle,
+    },
+    {
+      name: "Rate Us",
+      href: "/rate-us",
+      icon: Star,
+    },
+    {
+      name: "About",
+      href: "/about",
+      icon: Info,
+    },
+    {
+      name: "Contact",
+      href: "/contact",
+      icon: Phone,
+    },
   ]
 
   return (
-    <nav className="flex-1 flex flex-col mt-4 px-3 gap-1">
+    <nav className="flex flex-col flex-1 px-3">
 
-      {/* TOGGLE */}
-      <div className="flex items-center justify-between px-3 mb-2">
+      {/* ================= MENU HEADER ================= */}
+      <div
+        className={`flex items-center mb-4 ${
+          collapsed ? "justify-center" : "justify-between px-2"
+        }`}
+      >
         {!collapsed && (
-          <span className="text-xs opacity-60 tracking-wide">Menu</span>
+          <div>
+            <p className="text-[10px] uppercase tracking-[0.2em] text-[#FFD700]/60 font-semibold">
+              Navigation
+            </p>
+
+            <div className="mt-1 h-[2px] w-8 bg-[#FFD700] rounded-full" />
+          </div>
         )}
 
+        {/* COLLAPSE BUTTON */}
         <button
+          type="button"
           onClick={() => setCollapsed(!collapsed)}
-          className="text-xs bg-[#FFD700]/10 hover:bg-[#FFD700]/20 px-2 py-1 rounded"
+          className="
+            flex items-center justify-center
+            w-8 h-8
+            rounded-lg
+            bg-white/5
+            border border-[#FFD700]/20
+            text-[#FFD700]
+            hover:bg-[#FFD700]/15
+            hover:border-[#FFD700]/40
+            transition-all duration-200
+            shadow-sm
+          "
+          aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
         >
-          {collapsed ? "→" : "←"}
+          <span className="text-sm font-semibold">
+            {collapsed ? "→" : "←"}
+          </span>
         </button>
       </div>
 
-      {menu.map((item) => {
-        const Icon = item.icon
+      {/* ================= MENU ITEMS ================= */}
+      <div className="space-y-2">
 
-        return (
-          <Link
-            key={item.name}
-            href={item.href}
-            onClick={() => setLoading(item.name)}
-            className={`flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm hover:bg-[#FFD700]/15 transition-all duration-200 ${
-              collapsed ? "justify-center" : ""
-            }`}
-          >
-            <Icon className="w-4 h-4 opacity-80" />
-            {!collapsed && item.name}
-          </Link>
-        )
-      })}
+        {menu.map((item) => {
+          const Icon = item.icon
+          const isLoading = loading === item.name
+
+          return (
+            <Link
+              key={item.name}
+              href={item.href}
+              onClick={() => setLoading(item.name)}
+              className={`
+                group
+                relative
+                flex items-center
+                ${
+                  collapsed
+                    ? "justify-center px-2"
+                    : "gap-3 px-3"
+                }
+                h-11
+                rounded-xl
+                text-sm
+                font-medium
+                text-white/85
+
+                border border-transparent
+
+                hover:bg-[#FFD700]/10
+                hover:border-[#FFD700]/15
+                hover:text-[#FFD700]
+
+                transition-all
+                duration-200
+
+                ${
+                  isLoading
+                    ? "bg-[#FFD700]/15 text-[#FFD700] border-[#FFD700]/20"
+                    : ""
+                }
+              `}
+            >
+
+              {/* GOLD ACTIVE / HOVER INDICATOR */}
+              <span
+                className={`
+                  absolute
+                  left-0
+                  top-1/2
+                  -translate-y-1/2
+                  w-[3px]
+                  rounded-r-full
+                  bg-[#FFD700]
+                  transition-all duration-200
+                  ${
+                    isLoading
+                      ? "h-7 opacity-100"
+                      : "h-0 opacity-0 group-hover:h-5 group-hover:opacity-100"
+                  }
+                `}
+              />
+
+              {/* ICON CONTAINER */}
+              <span
+                className={`
+                  flex
+                  items-center
+                  justify-center
+                  shrink-0
+                  w-8
+                  h-8
+                  rounded-lg
+
+                  bg-white/5
+                  border border-white/5
+
+                  text-[#FFD700]
+
+                  group-hover:bg-[#FFD700]/15
+                  group-hover:border-[#FFD700]/20
+
+                  transition-all duration-200
+
+                  ${
+                    isLoading
+                      ? "bg-[#FFD700]/15 border-[#FFD700]/20"
+                      : ""
+                  }
+                `}
+              >
+                <Icon className="w-4 h-4" />
+              </span>
+
+              {/* TEXT */}
+              {!collapsed && (
+                <span className="truncate">
+                  {item.name}
+                </span>
+              )}
+
+              {/* LOADING INDICATOR */}
+              {!collapsed && isLoading && (
+                <span className="ml-auto">
+                  <Loader2 className="w-3.5 h-3.5 animate-spin text-[#FFD700]" />
+                </span>
+              )}
+            </Link>
+          )
+        })}
+
+      </div>
+
+      {/* ================= BOTTOM DECORATION ================= */}
+      {!collapsed && (
+        <div className="mt-auto pb-5 pt-6">
+
+          <div className="mx-2 h-px bg-gradient-to-r from-transparent via-[#FFD700]/25 to-transparent" />
+
+          <div className="mt-4 px-2 text-center">
+            <p className="text-[10px] uppercase tracking-[0.18em] text-[#FFD700]/40">
+              Laboratory
+            </p>
+
+            <p className="mt-1 text-[10px] text-white/30">
+              Borrowing Management System
+            </p>
+          </div>
+
+        </div>
+      )}
+
     </nav>
   )
 }

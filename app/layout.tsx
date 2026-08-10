@@ -1,4 +1,3 @@
-
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { Toaster } from "sonner";
@@ -17,6 +16,12 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "Lab Borrowing System",
   description: "Laboratory Borrowing Management System",
+
+  icons: {
+    icon: "/logo/LBS%20Icon.png",
+    shortcut: "/logo/LBS%20Icon.png",
+    apple: "/logo/LBS%20Icon.png",
+  },
 };
 
 export default function RootLayout({
@@ -41,4 +46,3 @@ export default function RootLayout({
     </html>
   );
 }
-

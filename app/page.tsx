@@ -7,18 +7,28 @@ import {
   Menu,
   Loader2,
   BookOpen,
-  Star,
   MessageSquare,
   Users,
   FlaskConical,
   HelpCircle,
   Phone,
   Info,
+  Cpu,
+  CircuitBoard,
+  Database,
+  ChevronRight,
+  ArrowRight,
+  ShieldCheck,
+  Boxes,
 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
-import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
+import {
+  Sheet,
+  SheetContent,
+  SheetTrigger,
+} from "@/components/ui/sheet"
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
 
@@ -31,15 +41,33 @@ export default function LandingPage() {
   }
 
   return (
-    <div className="h-screen bg-[#fffaf8] flex overflow-hidden">
+    <div className="min-h-screen bg-[#faf9f7] text-gray-800 overflow-hidden">
 
+      {/* ========================================================= */}
       {/* DESKTOP SIDEBAR */}
+      {/* ========================================================= */}
+
       <aside
-        className={`hidden md:flex bg-[#800000] text-[#FFD700] flex-col fixed h-full shadow-xl z-20 transition-all duration-300 ${
-          collapsed ? "w-20" : "w-64"
-        }`}
+        className={`
+          hidden md:flex
+          fixed
+          left-0
+          top-0
+          h-screen
+          z-40
+          flex-col
+          bg-[#800000]
+          text-[#FFD700]
+          shadow-[8px_0_30px_rgba(128,0,0,0.12)]
+          border-r
+          border-[#FFD700]/10
+          transition-all
+          duration-300
+          ${collapsed ? "w-20" : "w-64"}
+        `}
       >
         <LogoSection collapsed={collapsed} />
+
         <SidebarMenu
           loading={loading}
           setLoading={setLoading}
@@ -48,16 +76,42 @@ export default function LandingPage() {
         />
       </aside>
 
+      {/* ========================================================= */}
       {/* MOBILE SIDEBAR */}
+      {/* ========================================================= */}
+
       <div className="md:hidden fixed top-4 left-4 z-50">
         <Sheet>
           <SheetTrigger asChild>
-            <Button size="icon" className="bg-[#800000] hover:bg-[#660000] rounded-xl shadow-lg">
-              <Menu />
+            <Button
+              size="icon"
+              className="
+                bg-[#800000]
+                hover:bg-[#660000]
+                text-[#FFD700]
+                rounded-xl
+                shadow-lg
+                border
+                border-[#FFD700]/20
+              "
+            >
+              <Menu className="w-5 h-5" />
             </Button>
           </SheetTrigger>
-          <SheetContent side="left" className="p-0 bg-[#800000] text-[#FFD700] w-64">
+
+          <SheetContent
+            side="left"
+            className="
+              p-0
+              bg-[#800000]
+              text-[#FFD700]
+              w-72
+              border-r
+              border-[#FFD700]/10
+            "
+          >
             <LogoSection collapsed={false} />
+
             <SidebarMenu
               loading={loading}
               setLoading={setLoading}
@@ -68,158 +122,522 @@ export default function LandingPage() {
         </Sheet>
       </div>
 
+      {/* ========================================================= */}
       {/* MAIN CONTENT */}
+      {/* ========================================================= */}
+
       <main
-        className={`flex-1 w-full flex flex-col overflow-hidden transition-all duration-300 ${
-          collapsed ? "md:ml-20" : "md:ml-64"
-        }`}
+        className={`
+          min-h-screen
+          transition-all
+          duration-300
+          ${collapsed ? "md:ml-20" : "md:ml-64"}
+        `}
       >
 
+        {/* TECH BACKGROUND */}
+
         <div
-          className="fixed inset-0 pointer-events-none opacity-[0.03]"
+          className="fixed inset-0 pointer-events-none opacity-[0.025]"
           style={{
-            backgroundImage: "radial-gradient(circle, #800000 1px, transparent 1px)",
-            backgroundSize: "24px 24px",
+            backgroundImage: `
+              linear-gradient(#800000 1px, transparent 1px),
+              linear-gradient(90deg, #800000 1px, transparent 1px)
+            `,
+            backgroundSize: "36px 36px",
             left: collapsed ? "5rem" : "16rem",
           }}
         />
 
-        <div className="relative flex-1 flex flex-col p-6 md:px-10 md:py-8 max-w-[1800px] mx-auto w-full min-h-0">
+        <div className="relative max-w-[1600px] mx-auto px-5 sm:px-8 lg:px-12 py-6 md:py-10">
 
+          {/* ===================================================== */}
           {/* HERO */}
-          <section className="flex-none relative overflow-hidden bg-white rounded-2xl shadow-lg border border-red-100/50 hover:shadow-2xl transition-shadow duration-500">
+          {/* ===================================================== */}
 
-            <div className="relative px-8 py-8 md:px-12 md:py-10 text-center">
+          <section
+            className="
+              relative
+              overflow-hidden
+              rounded-[28px]
+              bg-white
+              border
+              border-[#800000]/10
+              shadow-[0_20px_60px_rgba(128,0,0,0.08)]
+            "
+          >
 
-              <Badge className="mb-4 bg-[#FFD700]/15 text-[#800000] border-[#FFD700]/30 font-medium px-3.5 py-1 text-xs">
-                <FlaskConical className="w-3.5 h-3.5 mr-1.5" />
-                Lab Management
-              </Badge>
+            {/* Gold top line */}
 
-              <h1 className="text-3xl md:text-[2.5rem] font-bold text-[#800000] mb-3">
-                Lab Borrowing System
-              </h1>
+            <div className="h-1.5 bg-gradient-to-r from-[#800000] via-[#FFD700] to-[#800000]" />
 
-              <p className="text-gray-500 max-w-xl mx-auto mb-8 text-[15px]">
-                Manage student and lab-in-charge accounts, track borrowed items,
-                and streamline laboratory operations efficiently.
-              </p>
+            {/* Decorative circuit lines */}
 
-              <div className="flex flex-col sm:flex-row gap-3 justify-center">
+            <div className="absolute right-0 top-0 w-[300px] h-[300px] pointer-events-none opacity-20">
 
-                <Link href="/student" onClick={() => handleClick("student")}>
-                  <Button
-                    className="bg-[#800000] hover:bg-[#660000] w-full sm:w-auto px-9 py-2.5"
-                    disabled={loading === "student"}
+              <div className="absolute top-16 right-10 w-32 h-px bg-[#800000]" />
+              <div className="absolute top-16 right-10 w-px h-20 bg-[#800000]" />
+
+              <div className="absolute top-36 right-20 w-20 h-px bg-[#FFD700]" />
+              <div className="absolute top-36 right-20 w-px h-16 bg-[#FFD700]" />
+
+              <div className="absolute top-56 right-32 w-16 h-px bg-[#800000]" />
+
+              <div className="absolute top-[62px] right-[38px] w-2.5 h-2.5 rounded-full bg-[#800000]" />
+              <div className="absolute top-[132px] right-[78px] w-2.5 h-2.5 rounded-full bg-[#FFD700]" />
+              <div className="absolute top-[212px] right-[125px] w-2.5 h-2.5 rounded-full bg-[#800000]" />
+
+            </div>
+
+            <div className="relative grid lg:grid-cols-[1.15fr_0.85fr] gap-8 items-center px-7 py-10 sm:px-10 md:px-14 md:py-14">
+
+              {/* LEFT */}
+
+              <div>
+
+                <Badge
+                  className="
+                    mb-5
+                    bg-[#800000]/5
+                    text-[#800000]
+                    border-[#800000]/15
+                    px-4
+                    py-1.5
+                    rounded-full
+                  "
+                >
+                  <Cpu className="w-3.5 h-3.5 mr-2" />
+                  Laboratory Technology Platform
+                </Badge>
+
+                <h1
+                  className="
+                    text-4xl
+                    sm:text-5xl
+                    lg:text-6xl
+                    font-bold
+                    tracking-tight
+                    text-[#800000]
+                    leading-[1.05]
+                  "
+                >
+                  Lab Borrowing
+                  <span className="block text-gray-800">
+                    System
+                  </span>
+                </h1>
+
+                <p
+                  className="
+                    mt-5
+                    max-w-xl
+                    text-gray-500
+                    text-sm
+                    sm:text-base
+                    leading-7
+                  "
+                >
+                  A centralized laboratory management platform for
+                  students and lab-in-charge personnel to manage,
+                  monitor, and streamline laboratory equipment borrowing.
+                </p>
+
+                {/* ACCESS BUTTONS */}
+
+                <div className="flex flex-col sm:flex-row gap-3 mt-8">
+
+                  <Link
+                    href="/student"
+                    onClick={() => handleClick("student")}
                   >
-                    {loading === "student" && <Loader2 className="animate-spin mr-2 h-4 w-4" />}
-                    <Users className="w-4 h-4 mr-2" />
-                    Student
-                  </Button>
-                </Link>
+                    <Button
+                      disabled={loading === "student"}
+                      className="
+                        w-full
+                        sm:w-auto
+                        h-12
+                        px-7
+                        bg-[#800000]
+                        hover:bg-[#660000]
+                        text-[#FFD700]
+                        rounded-xl
+                        shadow-lg
+                        shadow-[#800000]/20
+                        font-semibold
+                      "
+                    >
+                      {loading === "student" ? (
+                        <Loader2 className="mr-2 w-4 h-4 animate-spin" />
+                      ) : (
+                        <Users className="mr-2 w-4 h-4" />
+                      )}
 
-                <Link href="/lab-in-charge" onClick={() => handleClick("lab")}>
-                  <Button
-                    variant="outline"
-                    className="border-[#800000]/30 text-[#800000] w-full sm:w-auto px-9 py-2.5"
-                    disabled={loading === "lab"}
+                      Student Portal
+
+                      {!loading && (
+                        <ArrowRight className="ml-3 w-4 h-4" />
+                      )}
+                    </Button>
+                  </Link>
+
+                  <Link
+                    href="/lab-in-charge"
+                    onClick={() => handleClick("lab")}
                   >
-                    {loading === "lab" && <Loader2 className="animate-spin mr-2 h-4 w-4" />}
-                    <FlaskConical className="w-4 h-4 mr-2" />
-                    Lab-in-Charge
-                  </Button>
-                </Link>
+                    <Button
+                      disabled={loading === "lab"}
+                      variant="outline"
+                      className="
+                        w-full
+                        sm:w-auto
+                        h-12
+                        px-7
+                        rounded-xl
+                        border-[#800000]/20
+                        text-[#800000]
+                        hover:bg-[#800000]
+                        hover:text-[#FFD700]
+                        transition-all
+                      "
+                    >
+                      {loading === "lab" ? (
+                        <Loader2 className="mr-2 w-4 h-4 animate-spin" />
+                      ) : (
+                        <FlaskConical className="mr-2 w-4 h-4" />
+                      )}
+
+                      Lab-in-Charge
+                    </Button>
+                  </Link>
+
+                </div>
+
+                {/* SYSTEM STATUS */}
+
+                <div className="flex items-center gap-5 mt-8 text-xs text-gray-400">
+
+                  <div className="flex items-center gap-2">
+                    <span className="w-2 h-2 rounded-full bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.6)]" />
+                    System Ready
+                  </div>
+
+                  <div className="h-4 w-px bg-gray-200" />
+
+                  <div className="flex items-center gap-2">
+                    <ShieldCheck className="w-3.5 h-3.5 text-[#800000]" />
+                    Secure Access
+                  </div>
+
+                </div>
 
               </div>
+
+              {/* RIGHT TECHNOLOGY VISUAL */}
+
+              <div className="hidden lg:flex justify-center">
+
+                <div className="relative w-[330px] h-[330px]">
+
+                  {/* Outer rings */}
+
+                  <div className="absolute inset-4 rounded-full border border-[#800000]/10" />
+
+                  <div className="absolute inset-10 rounded-full border border-[#FFD700]/30" />
+
+                  <div className="absolute inset-16 rounded-full border border-[#800000]/10 border-dashed" />
+
+                  {/* Logo container */}
+
+                  <div
+                    className="
+                      absolute
+                      inset-[85px]
+                      rounded-[30px]
+                      bg-white
+                      border
+                      border-[#800000]/10
+                      shadow-[0_20px_50px_rgba(128,0,0,0.12)]
+                      flex
+                      items-center
+                      justify-center
+                    "
+                  >
+
+                    <div
+                      className="
+                        absolute
+                        inset-3
+                        rounded-[24px]
+                        bg-[#800000]/[0.025]
+                        border
+                        border-[#FFD700]/20
+                      "
+                    />
+
+                    <Image
+                      src="/logo/OfficialLogo.png"
+                      alt="Lab Borrowing System Logo"
+                      width={200}
+                      height={180}
+                      priority
+                      className="relative z-10 w-44 h-44 object-contain"
+                    />
+
+                  </div>
+
+                  {/* Technology nodes */}
+
+                  <div
+                    className="
+                      absolute
+                      top-7
+                      left-1/2
+                      -translate-x-1/2
+                      w-11
+                      h-11
+                      rounded-xl
+                      bg-[#800000]
+                      text-[#FFD700]
+                      flex
+                      items-center
+                      justify-center
+                      shadow-lg
+                    "
+                  >
+                    <Cpu className="w-5 h-5" />
+                  </div>
+
+                  <div
+                    className="
+                      absolute
+                      bottom-8
+                      left-10
+                      w-11
+                      h-11
+                      rounded-xl
+                      bg-white
+                      border
+                      border-[#800000]/15
+                      text-[#800000]
+                      flex
+                      items-center
+                      justify-center
+                      shadow-md
+                    "
+                  >
+                    <Database className="w-5 h-5" />
+                  </div>
+
+                  <div
+                    className="
+                      absolute
+                      bottom-8
+                      right-10
+                      w-11
+                      h-11
+                      rounded-xl
+                      bg-[#FFD700]
+                      text-[#800000]
+                      flex
+                      items-center
+                      justify-center
+                      shadow-md
+                    "
+                  >
+                    <CircuitBoard className="w-5 h-5" />
+                  </div>
+
+                </div>
+
+              </div>
+
             </div>
           </section>
 
-          <Separator className="my-8 bg-red-100/60" />
-
+          {/* ===================================================== */}
           {/* QUICK ACCESS */}
-          <div className="mb-6">
-            <h2 className="text-lg font-semibold text-[#800000]">
-              Quick Access
-            </h2>
+          {/* ===================================================== */}
+
+          <div className="flex items-center justify-between mt-10 mb-5">
+
+            <div>
+              <p className="text-[10px] uppercase tracking-[0.2em] font-bold text-[#800000]/50">
+                System Resources
+              </p>
+
+              <h2 className="text-xl font-bold text-[#800000] mt-1">
+                Quick Access
+              </h2>
+            </div>
+
+            <div className="hidden sm:flex items-center gap-2 text-xs text-gray-400">
+              <Boxes className="w-4 h-4" />
+              Laboratory Services
+            </div>
+
           </div>
 
-          {/* FEATURES */}
-          <section className="flex-1 grid gap-7 sm:grid-cols-2 lg:grid-cols-3 min-h-0 auto-rows-fr">
+          <Separator className="mb-6 bg-[#800000]/10" />
 
-            <Link href="/help" className="h-full">
+          {/* ===================================================== */}
+          {/* FEATURE CARDS */}
+          {/* ===================================================== */}
+
+          <section className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+
+            <Link href="/help" className="group h-full">
+
               <FeatureCard
-                title="Help"
-                desc="Access guides and FAQs to navigate the system smoothly."
+                title="Help Center"
+                desc="Access guides, instructions, and frequently asked questions."
                 icon={<BookOpen className="w-6 h-6" />}
-                gradient="from-blue-500 to-blue-600"
-                shadowColor="shadow-blue-500/20"
-                hoverColor="hover:text-blue-600"
+                accent="blue"
               />
+
             </Link>
 
-            <Link href="/rate-us" className="h-full">
-              <FeatureCard
-                title="Rate Us"
-                desc="Share your experience and feedback about the system."
-                icon={<Star className="w-6 h-6" />}
-                gradient="from-amber-400 to-orange-500"
-                shadowColor="shadow-amber-500/20"
-                hoverColor="hover:text-amber-600"
-              />
-            </Link>
+            <Link href="/rate-us" className="group h-full">
 
-            <Link href="/contact" className="h-full">
               <FeatureCard
-                title="Contact"
-                desc="Reach out anytime for assistance or inquiries."
+                title="System Feedback"
+                desc="Share your experience and help improve the laboratory system."
                 icon={<MessageSquare className="w-6 h-6" />}
-                gradient="from-[#800000] to-[#a00000]"
-                shadowColor="shadow-[#800000]/20"
-                hoverColor="hover:text-[#800000]"
+                accent="gold"
               />
+
+            </Link>
+
+            <Link href="/contact" className="group h-full">
+
+              <FeatureCard
+                title="Technical Support"
+                desc="Contact the system team for assistance and inquiries."
+                icon={<Phone className="w-6 h-6" />}
+                accent="maroon"
+              />
+
             </Link>
 
           </section>
+
+          {/* ===================================================== */}
+          {/* FOOTER */}
+          {/* ===================================================== */}
+
+          <footer className="mt-10 pb-4">
+
+            <div className="h-px bg-gradient-to-r from-transparent via-[#800000]/10 to-transparent" />
+
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-5 text-[11px] text-gray-400">
+
+              <p>
+                Laboratory Borrowing Management System
+              </p>
+
+              <div className="flex items-center gap-2">
+                <span className="w-1.5 h-1.5 rounded-full bg-green-500" />
+                System Ready
+              </div>
+
+            </div>
+
+          </footer>
+
         </div>
       </main>
     </div>
   )
 }
 
-/* ================= LOGO ================= */
+/* ============================================================= */
+/* LOGO SECTION */
+/* ============================================================= */
 
-function LogoSection({ collapsed }: { collapsed?: boolean }) {
+function LogoSection({
+  collapsed,
+}: {
+  collapsed?: boolean
+}) {
   return (
     <div
-      className={`flex items-center justify-center transition-all duration-300 ${
-        collapsed ? "px-2 py-4" : "px-4 py-6"
-      }`}
+      className={`
+        flex
+        items-center
+        justify-center
+        transition-all
+        duration-300
+        ${collapsed ? "px-2 py-5" : "px-4 py-6"}
+      `}
     >
+
       <div
-        className={`relative flex items-center justify-center bg-white rounded-2xl border-2 border-[#FFD700] shadow-lg transition-all duration-300 ${
-          collapsed
-            ? "w-14 h-14 p-1.5"
-            : "w-full max-w-[210x] h-[200px] px-4 py-5"
-        }`}
+        className={`
+          relative
+          flex
+          items-center
+          justify-center
+          bg-white
+          rounded-2xl
+          border-2
+          border-[#FFD700]/70
+          shadow-[0_10px_30px_rgba(0,0,0,0.15)]
+          overflow-hidden
+          transition-all
+          duration-300
+
+          ${
+            collapsed
+              ? "w-14 h-14 p-1.5"
+              : "w-full max-w-[210px] h-[185px] px-4 py-5"
+          }
+        `}
       >
-        {/* Subtle gold glow */}
-        <div className="absolute inset-0 rounded-2xl bg-[#FFD700]/10 pointer-events-none" />
+
+        {/* subtle tech grid */}
+
+        <div
+          className="absolute inset-0 opacity-[0.035]"
+          style={{
+            backgroundImage: `
+              linear-gradient(#800000 1px, transparent 1px),
+              linear-gradient(90deg, #800000 1px, transparent 1px)
+            `,
+            backgroundSize: "14px 14px",
+          }}
+        />
+
+        <div className="absolute top-2 right-2 w-2 h-2 rounded-full bg-[#FFD700]" />
+        <div className="absolute bottom-2 left-2 w-2 h-2 rounded-full bg-[#800000]" />
 
         <Image
           src="/logo/OfficialLogo.png"
           alt="Lab Borrowing System Logo"
-          width={collapsed ? 48 : 170}
-          height={collapsed ? 48 : 100}
+          width={180}
+          height={120}
           priority
-          className={`relative z-10 object-contain transition-all duration-300 ${
-            collapsed ? "w-11 h-11" : "w-[170px] h-auto"
-          }`}
+          className={`
+            relative
+            z-10
+            object-contain
+            transition-all
+            duration-300
+
+            ${
+              collapsed
+                ? "w-11 h-11"
+                : "w-[250px] h-[240px]"
+            }
+          `}
         />
+
       </div>
     </div>
   )
 }
-/* ================= SIDEBAR ================= */
+
+/* ============================================================= */
+/* SIDEBAR MENU */
+/* ============================================================= */
 
 function SidebarMenu({
   loading,
@@ -232,6 +650,7 @@ function SidebarMenu({
   collapsed: boolean
   setCollapsed: (v: boolean) => void
 }) {
+
   const menu = [
     {
       name: "Student",
@@ -251,7 +670,7 @@ function SidebarMenu({
     {
       name: "Rate Us",
       href: "/rate-us",
-      icon: Star,
+      icon: MessageSquare,
     },
     {
       name: "About",
@@ -268,50 +687,71 @@ function SidebarMenu({
   return (
     <nav className="flex flex-col flex-1 px-3">
 
-      {/* ================= MENU HEADER ================= */}
+      {/* MENU HEADER */}
+
       <div
-        className={`flex items-center mb-4 ${
-          collapsed ? "justify-center" : "justify-between px-2"
-        }`}
+        className={`
+          flex
+          items-center
+          mb-4
+          ${
+            collapsed
+              ? "justify-center"
+              : "justify-between px-2"
+          }
+        `}
       >
+
         {!collapsed && (
           <div>
+
             <p className="text-[10px] uppercase tracking-[0.2em] text-[#FFD700]/60 font-semibold">
               Navigation
             </p>
 
             <div className="mt-1 h-[2px] w-8 bg-[#FFD700] rounded-full" />
+
           </div>
         )}
 
-        {/* COLLAPSE BUTTON */}
         <button
           type="button"
           onClick={() => setCollapsed(!collapsed)}
           className="
-            flex items-center justify-center
-            w-8 h-8
+            flex
+            items-center
+            justify-center
+            w-8
+            h-8
             rounded-lg
             bg-white/5
-            border border-[#FFD700]/20
+            border
+            border-[#FFD700]/20
             text-[#FFD700]
             hover:bg-[#FFD700]/15
             hover:border-[#FFD700]/40
-            transition-all duration-200
-            shadow-sm
+            transition-all
+            duration-200
           "
-          aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+          aria-label={
+            collapsed
+              ? "Expand sidebar"
+              : "Collapse sidebar"
+          }
         >
           <span className="text-sm font-semibold">
             {collapsed ? "→" : "←"}
           </span>
         </button>
+
       </div>
 
-      {/* ================= MENU ITEMS ================= */}
+      {/* MENU */}
+
       <div className="space-y-2">
 
         {menu.map((item) => {
+
           const Icon = item.icon
           const isLoading = loading === item.name
 
@@ -323,7 +763,8 @@ function SidebarMenu({
               className={`
                 group
                 relative
-                flex items-center
+                flex
+                items-center
                 ${
                   collapsed
                     ? "justify-center px-2"
@@ -334,8 +775,8 @@ function SidebarMenu({
                 text-sm
                 font-medium
                 text-white/85
-
-                border border-transparent
+                border
+                border-transparent
 
                 hover:bg-[#FFD700]/10
                 hover:border-[#FFD700]/15
@@ -352,7 +793,8 @@ function SidebarMenu({
               `}
             >
 
-              {/* GOLD ACTIVE / HOVER INDICATOR */}
+              {/* ACTIVE INDICATOR */}
+
               <span
                 className={`
                   absolute
@@ -362,7 +804,9 @@ function SidebarMenu({
                   w-[3px]
                   rounded-r-full
                   bg-[#FFD700]
-                  transition-all duration-200
+                  transition-all
+                  duration-200
+
                   ${
                     isLoading
                       ? "h-7 opacity-100"
@@ -371,7 +815,8 @@ function SidebarMenu({
                 `}
               />
 
-              {/* ICON CONTAINER */}
+              {/* ICON */}
+
               <span
                 className={`
                   flex
@@ -381,16 +826,16 @@ function SidebarMenu({
                   w-8
                   h-8
                   rounded-lg
-
                   bg-white/5
-                  border border-white/5
-
+                  border
+                  border-white/5
                   text-[#FFD700]
 
                   group-hover:bg-[#FFD700]/15
                   group-hover:border-[#FFD700]/20
 
-                  transition-all duration-200
+                  transition-all
+                  duration-200
 
                   ${
                     isLoading
@@ -402,32 +847,37 @@ function SidebarMenu({
                 <Icon className="w-4 h-4" />
               </span>
 
-              {/* TEXT */}
               {!collapsed && (
                 <span className="truncate">
                   {item.name}
                 </span>
               )}
 
-              {/* LOADING INDICATOR */}
               {!collapsed && isLoading && (
                 <span className="ml-auto">
                   <Loader2 className="w-3.5 h-3.5 animate-spin text-[#FFD700]" />
                 </span>
               )}
+
             </Link>
           )
         })}
 
       </div>
 
-      {/* ================= BOTTOM DECORATION ================= */}
+      {/* SIDEBAR FOOTER */}
+
       {!collapsed && (
         <div className="mt-auto pb-5 pt-6">
 
           <div className="mx-2 h-px bg-gradient-to-r from-transparent via-[#FFD700]/25 to-transparent" />
 
           <div className="mt-4 px-2 text-center">
+
+            <div className="flex justify-center mb-2">
+              <CircuitBoard className="w-4 h-4 text-[#FFD700]/40" />
+            </div>
+
             <p className="text-[10px] uppercase tracking-[0.18em] text-[#FFD700]/40">
               Laboratory
             </p>
@@ -435,6 +885,7 @@ function SidebarMenu({
             <p className="mt-1 text-[10px] text-white/30">
               Borrowing Management System
             </p>
+
           </div>
 
         </div>
@@ -444,82 +895,164 @@ function SidebarMenu({
   )
 }
 
-/* ================= FEATURE CARD ================= */
+/* ============================================================= */
+/* FEATURE CARD */
+/* ============================================================= */
 
 function FeatureCard({
   title,
   desc,
   icon,
-  gradient,
-  shadowColor,
-  hoverColor,
+  accent,
 }: {
   title: string
   desc: string
   icon: React.ReactNode
-  gradient: string
-  shadowColor: string
-  hoverColor: string
+  accent: "blue" | "gold" | "maroon"
 }) {
+
+  const styles = {
+    blue: {
+      iconBg: "bg-blue-50",
+      iconColor: "text-blue-600",
+      border: "group-hover:border-blue-200",
+      glow: "group-hover:shadow-blue-500/10",
+    },
+
+    gold: {
+      iconBg: "bg-[#FFD700]/10",
+      iconColor: "text-[#b88600]",
+      border: "group-hover:border-[#FFD700]/40",
+      glow: "group-hover:shadow-[#FFD700]/10",
+    },
+
+    maroon: {
+      iconBg: "bg-[#800000]/5",
+      iconColor: "text-[#800000]",
+      border: "group-hover:border-[#800000]/20",
+      glow: "group-hover:shadow-[#800000]/10",
+    },
+  }
+
+  const style = styles[accent]
+
   return (
     <Card
-      className="
-        h-full rounded-2xl border border-gray-100
-        shadow-sm
-        transition-all duration-300 ease-out
-        cursor-pointer group overflow-hidden
-        hover:shadow-2xl hover:-translate-y-2 hover:scale-[1.02]
-        hover:border-[#800000]/20
+      className={`
         relative
-      "
+        h-full
+        overflow-hidden
+        bg-white
+        border
+        border-gray-100
+        rounded-2xl
+        shadow-sm
+
+        ${style.border}
+        ${style.glow}
+
+        group-hover:shadow-xl
+        group-hover:-translate-y-1
+
+        transition-all
+        duration-300
+      `}
     >
-      {/* glow */}
-      <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500">
-        <div className="absolute -top-10 -right-10 w-32 h-32 bg-[#800000]/10 blur-2xl rounded-full" />
-        <div className="absolute -bottom-10 -left-10 w-32 h-32 bg-yellow-400/10 blur-2xl rounded-full" />
-      </div>
 
-      <CardContent className="p-8 flex flex-col items-center text-center h-full relative">
+      {/* top accent */}
 
-        <div
-          className={`
-            w-18 h-18 rounded-2xl
-            bg-gradient-to-br ${gradient}
-            ${shadowColor}
-            shadow-lg
-            flex items-center justify-center
-            text-white mb-6
-            transition-all duration-300
-            group-hover:scale-110 group-hover:rotate-3
-          `}
-        >
-          {icon}
-        </div>
+      <div className="absolute left-0 top-0 w-full h-1 bg-gradient-to-r from-[#800000] to-[#FFD700] opacity-0 group-hover:opacity-100 transition-opacity" />
 
-        <h3 className="font-bold text-[#800000] text-xl mb-2 group-hover:tracking-wide transition-all">
-          {title}
-        </h3>
+      <CardContent className="p-7">
 
-        <p className="text-gray-500 text-sm leading-relaxed mb-6 px-2">
-          {desc}
-        </p>
+        <div className="flex items-start gap-5">
 
-        <div
-          className={`mt-auto flex items-center gap-2 text-sm font-medium text-gray-400 ${hoverColor} transition-all duration-300 group-hover:gap-3 group-hover:text-[#800000]`}
-        >
-          <span>Learn more</span>
+          {/* ICON */}
 
-          <svg
-            className="w-4 h-4 transition-transform duration-300 group-hover:translate-x-1"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-            strokeWidth={2}
+          <div
+            className={`
+              shrink-0
+              w-14
+              h-14
+              rounded-xl
+              ${style.iconBg}
+              ${style.iconColor}
+              flex
+              items-center
+              justify-center
+              border
+              border-current/10
+
+              group-hover:scale-105
+
+              transition-transform
+              duration-300
+            `}
           >
-            <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
-          </svg>
+            {icon}
+          </div>
+
+          {/* CONTENT */}
+
+          <div className="min-w-0">
+
+            <h3
+              className="
+                font-bold
+                text-[#800000]
+                text-lg
+                group-hover:text-[#660000]
+                transition-colors
+              "
+            >
+              {title}
+            </h3>
+
+            <p
+              className="
+                text-gray-500
+                text-sm
+                leading-6
+                mt-2
+              "
+            >
+              {desc}
+            </p>
+
+            <div
+              className="
+                flex
+                items-center
+                gap-1.5
+                mt-4
+                text-xs
+                font-semibold
+                text-gray-400
+                group-hover:text-[#800000]
+                transition-all
+              "
+            >
+              <span>
+                Open
+              </span>
+
+              <ChevronRight
+                className="
+                  w-3.5
+                  h-3.5
+                  group-hover:translate-x-1
+                  transition-transform
+                "
+              />
+
+            </div>
+
+          </div>
+
         </div>
+
       </CardContent>
+
     </Card>
   )
 }

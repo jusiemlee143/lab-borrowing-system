@@ -81,7 +81,7 @@ export default function StudentLoginPage() {
       const parsed = JSON.parse(session)
 
       if (parsed?.loggedIn === true) {
-        router.replace("/student/login")
+        router.replace("/student/dashboard")
       }
     } catch {
       sessionStorage.removeItem("studentSession")
@@ -103,6 +103,10 @@ export default function StudentLoginPage() {
 
     const studentId = loginId.trim()
 
+    // ----------------------------------------------------------
+    // VALIDATION
+    // ----------------------------------------------------------
+
     if (!studentId || !loginPassword) {
       setLoginError(
         "Please enter your Student ID and Password."
@@ -113,15 +117,26 @@ export default function StudentLoginPage() {
     setIsLoggingIn(true)
 
     try {
+      // --------------------------------------------------------
       // Simulated login delay
+      // --------------------------------------------------------
+
       await new Promise((resolve) =>
         setTimeout(resolve, 700)
       )
+
+      // --------------------------------------------------------
+      // CHECK CREDENTIALS
+      // --------------------------------------------------------
 
       if (
         studentId === DEFAULT_CREDENTIALS.studentId &&
         loginPassword === DEFAULT_CREDENTIALS.password
       ) {
+        // ------------------------------------------------------
+        // CREATE STUDENT SESSION
+        // ------------------------------------------------------
+
         sessionStorage.setItem(
           "studentSession",
           JSON.stringify({
@@ -130,14 +145,29 @@ export default function StudentLoginPage() {
           })
         )
 
+        // ------------------------------------------------------
+        // SUCCESS MESSAGE
+        // ------------------------------------------------------
+
         toast.success("Login successful!")
 
-        router.replace("/student/login")
-      } else {
-        setLoginError(
-          "Invalid Student ID or Password. Please check your credentials."
-        )
+        // ------------------------------------------------------
+        // IMPORTANT:
+        // Redirect to the STUDENT DASHBOARD
+        // ------------------------------------------------------
+
+        router.replace("/student/dashboard")
+
+        return
       }
+
+      // --------------------------------------------------------
+      // INVALID CREDENTIALS
+      // --------------------------------------------------------
+
+      setLoginError(
+        "Invalid Student ID or Password. Please check your credentials."
+      )
     } catch (error) {
       console.error("Student login error:", error)
 
@@ -155,7 +185,8 @@ export default function StudentLoginPage() {
 
   const handleExit = () => {
     sessionStorage.removeItem("studentSession")
-    router.push("/student/borrower-slip") 
+
+    router.push("/student/borrower-slip")
   }
 
   // ============================================================
@@ -278,7 +309,6 @@ export default function StudentLoginPage() {
 
       {/* ======================================================
           MAIN LOGIN CONTAINER
-          NON-SCROLLABLE
       ====================================================== */}
 
       <main
@@ -330,8 +360,6 @@ export default function StudentLoginPage() {
               xl:p-10
             "
           >
-            {/* Background decoration */}
-
             <div className="pointer-events-none absolute inset-0">
               <div className="absolute left-[20%] top-0 h-full w-px bg-[#FFD700]/10" />
 

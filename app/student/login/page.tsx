@@ -81,7 +81,7 @@ export default function StudentLoginPage() {
       const parsed = JSON.parse(session)
 
       if (parsed?.loggedIn === true) {
-        router.replace("/student/dashboard")
+        router.replace("/student/login")
       }
     } catch {
       sessionStorage.removeItem("studentSession")
@@ -132,7 +132,7 @@ export default function StudentLoginPage() {
 
         toast.success("Login successful!")
 
-        router.replace("/student/dashboard")
+        router.replace("/student/login")
       } else {
         setLoginError(
           "Invalid Student ID or Password. Please check your credentials."
@@ -155,7 +155,7 @@ export default function StudentLoginPage() {
 
   const handleExit = () => {
     sessionStorage.removeItem("studentSession")
-    router.push("/")
+    router.push("/student/borrower-slip") 
   }
 
   // ============================================================

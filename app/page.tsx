@@ -247,7 +247,7 @@ export default function LandingPage() {
                 <div className="flex flex-col sm:flex-row gap-3 mt-8">
 
                   <Link
-                    href="/student"
+                    href="/student/login"
                     onClick={() => handleClick("student")}
                   >
                     <Button
@@ -654,7 +654,7 @@ function SidebarMenu({
   const menu = [
     {
       name: "Student",
-      href: "/student",
+      href: "/student/login",
       icon: Users,
     },
     {

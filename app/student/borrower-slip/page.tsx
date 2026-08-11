@@ -379,7 +379,7 @@ export default function BorrowerSlipPage() {
 
       setCart([])
 
-      router.push("/student")
+      router.push("/student/dashboard")
     } catch (err) {
       console.error(err)
 
@@ -513,7 +513,7 @@ export default function BorrowerSlipPage() {
             <Button
               variant="outline"
               onClick={() =>
-                router.push("/student")
+                router.push("/student/dashboard")
               }
               className="
                 h-9

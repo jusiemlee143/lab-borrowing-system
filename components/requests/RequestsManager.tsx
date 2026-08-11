@@ -32,6 +32,7 @@ export interface Request {
   date: string;
   activityTitle: string;
   instructor?: string;
+  instructorName?: string;
 
   members?: string[];
 

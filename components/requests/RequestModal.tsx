@@ -277,9 +277,13 @@ export default function RequestModal({
                 />
 
                 <InfoItem
-                  label="Instructor"
-                  value={request.instructor || "N/A"}
-                />
+                label="Instructor"
+                value={
+                  request.instructorName ||
+                  request.instructor ||
+                  "N/A"
+                }
+              />
               </div>
             </section>
 

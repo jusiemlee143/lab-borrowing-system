@@ -19,7 +19,12 @@ export interface Request {
 
   date: string;
   activityTitle: string;
+
+  // Original instructor ID
   instructor?: string;
+
+  // Instructor name returned by the API
+  instructorName?: string;
 
   members?: string[];
 
@@ -77,7 +82,9 @@ export default function RequestTable({
 
           <span className="text-xs font-semibold text-gray-600">
             {requests.length}{" "}
-            {requests.length === 1 ? "Request" : "Requests"}
+            {requests.length === 1
+              ? "Request"
+              : "Requests"}
           </span>
         </div>
       </div>
@@ -243,9 +250,16 @@ export default function RequestTable({
                       {request.activityTitle}
                     </p>
 
-                    {request.instructor && (
+                    {/* ===================================== */}
+                    {/* INSTRUCTOR NAME */}
+                    {/* ===================================== */}
+
+                    {(request.instructorName ||
+                      request.instructor) && (
                       <p className="mt-1 truncate text-xs text-gray-400">
-                        Instructor: {request.instructor}
+                        Instructor:{" "}
+                        {request.instructorName ||
+                          request.instructor}
                       </p>
                     )}
                   </div>

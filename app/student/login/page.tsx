@@ -720,6 +720,30 @@ export default function StudentLoginPage() {
                         </span>
                       )}
                     </Button>
+                    {/* Create Account Button */}
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => router.push("/student/create-account")}
+                    disabled={isLoggingIn}
+                    className="
+                      h-11
+                      w-full
+                      rounded-xl
+                      border-[#800000]/30
+                      bg-white
+                      text-base
+                      font-semibold
+                      text-[#800000]
+                      transition-all
+                      hover:bg-[#800000]
+                      hover:text-[#FFD700]
+                      hover:border-[#800000]
+                    "
+                  >
+                    <User className="mr-2 h-4 w-4" />
+                    Create Account
+                  </Button>
                   </form>
                 </CardContent>
               </Card>

@@ -186,7 +186,7 @@ export default function StudentLoginPage() {
   const handleExit = () => {
     sessionStorage.removeItem("studentSession")
 
-    router.push("/student/borrower-slip")
+    router.push("/")
   }
 
   // ============================================================

@@ -1,10 +1,58 @@
 import connectDB from "@/models/utils/db";
 import Request from "@/models/Request";
 import Tool from "@/models/Tool";
+import RequestHistory from "@/models/RequestHistory";
+import getAuthenticatedUser from "@/lib/auth/getAuthenticatedUser";
 
 export async function PATCH(req, { params }) {
   try {
     await connectDB();
+
+    // =====================================================
+    // AUTHENTICATE CURRENT USER
+    // =====================================================
+
+    const user = await getAuthenticatedUser();
+
+    if (!user) {
+      return Response.json(
+        {
+          success: false,
+          message: "Authentication required. Please log in.",
+        },
+        {
+          status: 401,
+        }
+      );
+    }
+
+    // =====================================================
+    // MAKE SURE USER IS A LIC
+    // =====================================================
+
+    if (user.role !== "lic") {
+      return Response.json(
+        {
+          success: false,
+          message: "Only Lab-In-Charge accounts can perform this action.",
+        },
+        {
+          status: 403,
+        }
+      );
+    }
+
+    console.log("==================================");
+    console.log("AUTHENTICATED LIC");
+    console.log("User ID:", user._id.toString());
+    console.log("Full Name:", user.fullName);
+    console.log("Employee ID:", user.employeeId || "N/A");
+    console.log("Role:", user.role);
+    console.log("==================================");
+
+    // =====================================================
+    // GET REQUEST DATA
+    // =====================================================
 
     const { id } = await params;
 
@@ -15,6 +63,8 @@ export async function PATCH(req, { params }) {
     console.log("Request ID:", id);
     console.log("Action:", action);
     console.log("Reject Reason:", rejectReason);
+    console.log("Performed By:", user.fullName);
+    console.log("==================================");
 
     // =====================================================
     // FIND REQUEST
@@ -58,7 +108,11 @@ export async function PATCH(req, { params }) {
       request.status = "approved";
       request.approvedDate = new Date();
 
+      // Save the authenticated LIC
+      request.approvedBy = user.fullName;
+
       console.log("Status changed to APPROVED");
+      console.log("Approved By:", user.fullName);
     }
 
     // =====================================================
@@ -94,10 +148,14 @@ export async function PATCH(req, { params }) {
       request.status = "rejected";
       request.rejectedDate = new Date();
 
+      // Save authenticated LIC
+      request.rejectedBy = user.fullName;
+
       // Save rejection reason
       request.rejectReason = rejectReason.trim();
 
       console.log("Status changed to REJECTED");
+      console.log("Rejected By:", user.fullName);
       console.log("Reject Reason:", request.rejectReason);
     }
 
@@ -329,7 +387,11 @@ export async function PATCH(req, { params }) {
       request.status = "released";
       request.releasedDate = new Date();
 
+      // Save authenticated LIC
+      request.releasedBy = user.fullName;
+
       console.log("Status changed to RELEASED");
+      console.log("Released By:", user.fullName);
     }
 
     // =====================================================
@@ -431,7 +493,11 @@ export async function PATCH(req, { params }) {
       request.status = "returned";
       request.returnedDate = new Date();
 
+      // Save authenticated LIC
+      request.returnedBy = user.fullName;
+
       console.log("Status changed to RETURNED");
+      console.log("Returned By:", user.fullName);
     }
 
     // =====================================================
@@ -460,7 +526,62 @@ export async function PATCH(req, { params }) {
     console.log("REQUEST SAVED SUCCESSFULLY");
     console.log("New Status:", request.status);
     console.log("Reject Reason:", request.rejectReason);
+    console.log("Action Performed By:", user.fullName);
+    console.log("Employee ID:", user.employeeId || "N/A");
     console.log("==================================");
+
+    // =====================================================
+    // CREATE HISTORY / AUDIT LOG
+    // =====================================================
+
+    await RequestHistory.create({
+      requestId: request._id,
+
+      action:
+        action === "approve"
+          ? "approved"
+          : action === "reject"
+          ? "rejected"
+          : action === "release"
+          ? "released"
+          : action === "return"
+          ? "returned"
+          : action,
+
+      performedBy: {
+        userId: user._id,
+        fullName: user.fullName,
+        employeeId: user.employeeId || "",
+      },
+
+      reason:
+        action === "reject"
+          ? request.rejectReason
+          : "",
+    });
+
+    console.log("==================================");
+    console.log("HISTORY CREATED");
+    console.log("Request ID:", request._id.toString());
+    console.log(
+      "Action:",
+      action === "approve"
+        ? "approved"
+        : action === "reject"
+        ? "rejected"
+        : action === "release"
+        ? "released"
+        : action === "return"
+        ? "returned"
+        : action
+    );
+    console.log("Performed By:", user.fullName);
+    console.log("Employee ID:", user.employeeId || "N/A");
+    console.log("==================================");
+
+    // =====================================================
+    // RESPONSE
+    // =====================================================
 
     return Response.json({
       success: true,

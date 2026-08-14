@@ -26,15 +26,6 @@ import { Spinner } from "@/components/ui/spinner"
 import { Toaster, toast } from "sonner"
 
 // ============================================================
-// DEFAULT STUDENT CREDENTIALS
-// ============================================================
-
-const DEFAULT_CREDENTIALS = {
-  studentId: "student001",
-  password: "password123",
-}
-
-// ============================================================
 // STUDENT LOGIN PAGE
 // ============================================================
 
@@ -92,92 +83,124 @@ export default function StudentLoginPage() {
   // LOGIN
   // ============================================================
 
-  const handleLogin = async (
-    e: React.FormEvent<HTMLFormElement>
-  ) => {
-    e.preventDefault()
+const handleLogin = async (
+  e: React.FormEvent<HTMLFormElement>
+) => {
+  e.preventDefault()
 
-    if (isLoggingIn) return
+  if (isLoggingIn) return
 
-    setLoginError("")
+  setLoginError("")
 
-    const studentId = loginId.trim()
+  const studentId = loginId.trim()
 
-    // ----------------------------------------------------------
-    // VALIDATION
-    // ----------------------------------------------------------
+  // ============================================================
+  // VALIDATION
+  // ============================================================
 
-    if (!studentId || !loginPassword) {
+  if (!studentId || !loginPassword) {
+    setLoginError(
+      "Please enter your Student ID and Password."
+    )
+    return
+  }
+
+  setIsLoggingIn(true)
+
+  try {
+    // ==========================================================
+    // SEND LOGIN INFORMATION TO BACKEND
+    // ==========================================================
+
+    const response = await fetch("/api/auth/login", {
+      method: "POST",
+
+      headers: {
+        "Content-Type": "application/json",
+      },
+
+      // Allows the browser to receive/save the JWT cookie
+      credentials: "include",
+
+      body: JSON.stringify({
+        studentId: studentId,
+        password: loginPassword,
+      }),
+    })
+
+    // ==========================================================
+    // GET BACKEND RESPONSE
+    // ==========================================================
+
+    const data = await response.json()
+
+    console.log("=================================")
+    console.log("STUDENT LOGIN RESPONSE")
+    console.log("Status:", response.status)
+    console.log("Data:", data)
+    console.log("=================================")
+
+    // ==========================================================
+    // LOGIN FAILED
+    // ==========================================================
+
+    if (!response.ok) {
       setLoginError(
-        "Please enter your Student ID and Password."
+        data.message ||
+          "Invalid Student ID or Password."
       )
+
       return
     }
 
-    setIsLoggingIn(true)
+    // ==========================================================
+    // LOGIN SUCCESSFUL
+    // ==========================================================
 
-    try {
-      // --------------------------------------------------------
-      // Simulated login delay
-      // --------------------------------------------------------
+    console.log("✅ Student login successful")
 
-      await new Promise((resolve) =>
-        setTimeout(resolve, 700)
-      )
+    // ==========================================================
+    // CREATE FRONTEND SESSION
+    // ==========================================================
 
-      // --------------------------------------------------------
-      // CHECK CREDENTIALS
-      // --------------------------------------------------------
+    sessionStorage.setItem(
+      "studentSession",
+      JSON.stringify({
+        loggedIn: true,
+        studentId: data.studentId,
+        userId: data.userId,
+        fullName: data.fullName,
+        email: data.email,
+        role: data.role,
+      })
+    )
 
-      if (
-        studentId === DEFAULT_CREDENTIALS.studentId &&
-        loginPassword === DEFAULT_CREDENTIALS.password
-      ) {
-        // ------------------------------------------------------
-        // CREATE STUDENT SESSION
-        // ------------------------------------------------------
+    // ==========================================================
+    // SUCCESS MESSAGE
+    // ==========================================================
 
-        sessionStorage.setItem(
-          "studentSession",
-          JSON.stringify({
-            loggedIn: true,
-            studentId,
-          })
-        )
+    toast.success("Login successful!")
 
-        // ------------------------------------------------------
-        // SUCCESS MESSAGE
-        // ------------------------------------------------------
+    // ==========================================================
+    // GO TO STUDENT DASHBOARD
+    // ==========================================================
 
-        toast.success("Login successful!")
+    router.replace("/student/dashboard")
 
-        // ------------------------------------------------------
-        // IMPORTANT:
-        // Redirect to the STUDENT DASHBOARD
-        // ------------------------------------------------------
+  } catch (error) {
+    console.error(
+      "Student login error:",
+      error
+    )
 
-        router.replace("/student/dashboard")
+    setLoginError(
+      "Unable to connect to the server. Please try again."
+    )
 
-        return
-      }
-
-      // --------------------------------------------------------
-      // INVALID CREDENTIALS
-      // --------------------------------------------------------
-
-      setLoginError(
-        "Invalid Student ID or Password. Please check your credentials."
-      )
-    } catch (error) {
-      console.error("Student login error:", error)
-
-      setLoginError(
-        "Something went wrong. Please try again."
-      )
-    } finally {
-      setIsLoggingIn(false)
-    }
+  } finally {
+    setIsLoggingIn(false)
   }
+}
 
   // ============================================================
   // EXIT
@@ -487,6 +510,7 @@ export default function StudentLoginPage() {
             "
           >
             <div className="mx-auto w-full max-w-md">
+
               {/* Mobile logo */}
 
               <div className="mb-4 lg:hidden">
@@ -530,10 +554,12 @@ export default function StudentLoginPage() {
 
               <Card className="rounded-2xl border border-gray-200 shadow-sm">
                 <CardContent className="p-4 sm:p-6">
+
                   <form
                     onSubmit={handleLogin}
                     className="space-y-4"
                   >
+
                     {/* Student ID */}
 
                     <div className="space-y-1.5">
@@ -720,50 +746,49 @@ export default function StudentLoginPage() {
                         </span>
                       )}
                     </Button>
+
+                    {/* Create Account Button */}
+
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() =>
+                        router.push(
+                          "/student/create-account"
+                        )
+                      }
+                      disabled={isLoggingIn}
+                      className="
+                        h-11
+                        w-full
+                        rounded-xl
+                        border-[#800000]/30
+                        bg-white
+                        text-base
+                        font-semibold
+                        text-[#800000]
+                        transition-all
+                        hover:bg-[#800000]
+                        hover:text-[#FFD700]
+                        hover:border-[#800000]
+                      "
+                    >
+                      <User className="mr-2 h-4 w-4" />
+
+                      Create Account
+                    </Button>
+
                   </form>
+
                 </CardContent>
               </Card>
-
-              {/* Testing Credentials */}
-
-              <div className="mt-3 rounded-xl border border-[#FFD700]/30 bg-[#FFD700]/10 px-4 py-2.5">
-                <div className="flex items-center gap-3">
-                  <div className="rounded-lg bg-[#FFD700]/20 p-1.5">
-                    <Lock
-                      className="h-3.5 w-3.5 text-[#800000]"
-                      strokeWidth={2}
-                    />
-                  </div>
-
-                  <div className="flex-1 text-xs">
-                    <p className="font-semibold text-[#800000]">
-                      Testing Credentials
-                    </p>
-
-                    <div className="mt-0.5 flex flex-wrap gap-x-4 gap-y-0.5">
-                      <p className="text-gray-600">
-                        ID:{" "}
-                        <span className="font-mono font-medium text-gray-800">
-                          {DEFAULT_CREDENTIALS.studentId}
-                        </span>
-                      </p>
-
-                      <p className="text-gray-600">
-                        Password:{" "}
-                        <span className="font-mono font-medium text-gray-800">
-                          {DEFAULT_CREDENTIALS.password}
-                        </span>
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              </div>
 
               {/* Footer */}
 
               <p className="mt-3 text-center text-xs text-gray-400">
                 © 2026 Lab Borrowing System • All rights reserved
               </p>
+
             </div>
           </section>
         </div>

@@ -3,6 +3,7 @@
 import RequestsManager from "@/components/requests/RequestsManager"
 import EditToolModal from "@/components/EditToolModal"
 import DeleteToolDialog from "@/components/DeleteToolDialog"
+import HistoryManager from "@/components/history/HistoryManager"
 import { useState, useEffect } from "react"
 import {
   Search,
@@ -630,6 +631,25 @@ export default function LabInChargePage() {
           </div>
 
           <RequestsManager />
+
+        </section>
+        {/* ==================================================== */}
+        {/* REQUEST HISTORY */}
+        {/* ==================================================== */}
+
+        <section className="mb-8">
+
+          <div className="flex items-center gap-2 mb-4">
+
+            <div className="w-1 h-6 rounded-full bg-[#800000]" />
+
+            <h2 className="text-xl font-bold text-[#800000]">
+              Request History
+            </h2>
+
+          </div>
+
+          <HistoryManager />
 
         </section>
 

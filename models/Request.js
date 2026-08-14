@@ -1,5 +1,60 @@
 import mongoose from "mongoose";
 
+const requestHistorySchema = new mongoose.Schema(
+  {
+    action: {
+      type: String,
+      enum: [
+        "created",
+        "approved",
+        "rejected",
+        "released",
+        "returned",
+      ],
+      required: true,
+    },
+
+    performedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      default: null,
+    },
+
+    performedByName: {
+      type: String,
+      required: true,
+    },
+
+    performedByEmail: {
+      type: String,
+      default: "",
+    },
+
+    performedByEmployeeId: {
+      type: String,
+      default: "",
+    },
+
+    performedAt: {
+      type: Date,
+      default: Date.now,
+    },
+
+    reason: {
+      type: String,
+      default: "",
+    },
+
+    details: {
+      type: String,
+      default: "",
+    },
+  },
+  {
+    _id: true,
+  }
+);
+
 const requestSchema = new mongoose.Schema(
   {
     studentName: {
@@ -27,8 +82,13 @@ const requestSchema = new mongoose.Schema(
       required: true,
     },
 
+    // =====================================================
+    // INSTRUCTOR / TEACHER
+    // =====================================================
+
     instructor: {
-      type: String,
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Teacher",
       required: true,
     },
 
@@ -36,6 +96,10 @@ const requestSchema = new mongoose.Schema(
       type: [String],
       default: [],
     },
+
+    // =====================================================
+    // CART
+    // =====================================================
 
     cart: [
       {
@@ -56,7 +120,10 @@ const requestSchema = new mongoose.Schema(
       },
     ],
 
-    // Request Status
+    // =====================================================
+    // REQUEST STATUS
+    // =====================================================
+
     status: {
       type: String,
       enum: [
@@ -69,7 +136,10 @@ const requestSchema = new mongoose.Schema(
       default: "pending",
     },
 
-    // Approval Information
+    // =====================================================
+    // APPROVAL INFORMATION
+    // =====================================================
+
     approvedBy: {
       type: String,
       default: "",
@@ -80,7 +150,10 @@ const requestSchema = new mongoose.Schema(
       default: null,
     },
 
-    // Release Information
+    // =====================================================
+    // RELEASE INFORMATION
+    // =====================================================
+
     releasedBy: {
       type: String,
       default: "",
@@ -91,7 +164,10 @@ const requestSchema = new mongoose.Schema(
       default: null,
     },
 
-    // Return Information
+    // =====================================================
+    // RETURN INFORMATION
+    // =====================================================
+
     returnedBy: {
       type: String,
       default: "",
@@ -102,7 +178,10 @@ const requestSchema = new mongoose.Schema(
       default: null,
     },
 
-    // Rejection
+    // =====================================================
+    // REJECTION INFORMATION
+    // =====================================================
+
     rejectedBy: {
       type: String,
       default: "",
@@ -116,6 +195,15 @@ const requestSchema = new mongoose.Schema(
     rejectReason: {
       type: String,
       default: "",
+    },
+
+    // =====================================================
+    // HISTORY / AUDIT TRAIL
+    // =====================================================
+
+    history: {
+      type: [requestHistorySchema],
+      default: [],
     },
   },
   {

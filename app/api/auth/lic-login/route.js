@@ -27,8 +27,8 @@ export async function POST(req) {
 
     // Compare entered password with hashed password in DB
     const isMatch = await user.matchPassword(password);
-    console.log("INPUT PASSWORD:", password);
-    console.log("HASH FROM DB:", user.password);
+    //console.log("INPUT PASSWORD:", password);
+    //console.log("HASH FROM DB:", user.password);
     console.log("MATCH RESULT:", isMatch);
 
     if (!isMatch) {

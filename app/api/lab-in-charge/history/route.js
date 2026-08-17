@@ -30,12 +30,14 @@ export async function GET() {
     // FETCH REQUESTS
     // =====================================================
 
-    const requests = await Request.find({
-      _id: {
-        $in: requestIds,
-      },
-    })
-      .lean();
+    const requests =
+      requestIds.length > 0
+        ? await Request.find({
+            _id: {
+              $in: requestIds,
+            },
+          }).lean()
+        : [];
 
     // =====================================================
     // CREATE REQUEST LOOKUP
@@ -62,13 +64,16 @@ export async function GET() {
     // FETCH TEACHERS
     // =====================================================
 
-    const teachers = await Teacher.find({
-      _id: {
-        $in: teacherIds,
-      },
-    })
-      .select("_id name email")
-      .lean();
+    const teachers =
+      teacherIds.length > 0
+        ? await Teacher.find({
+            _id: {
+              $in: teacherIds,
+            },
+          })
+            .select("_id name email")
+            .lean()
+        : [];
 
     // =====================================================
     // CREATE TEACHER LOOKUP
@@ -84,6 +89,53 @@ export async function GET() {
     }
 
     // =====================================================
+    // NORMALIZE PERFORMER ROLE
+    // =====================================================
+
+    function normalizePerformerRole(performedBy) {
+      if (!performedBy) {
+        return "student";
+      }
+
+      const rawRole = String(
+        performedBy.role || ""
+      )
+        .toLowerCase()
+        .trim();
+
+      // ---------------------------------------------------
+      // LAB-IN-CHARGE
+      // ---------------------------------------------------
+
+      if (
+        rawRole === "lab-in-charge" ||
+        rawRole === "lab_in_charge" ||
+        rawRole === "labincharge" ||
+        rawRole === "lic" ||
+        performedBy.employeeId
+      ) {
+        return "lab-in-charge";
+      }
+
+      // ---------------------------------------------------
+      // STUDENT
+      // ---------------------------------------------------
+
+      if (
+        rawRole === "student" ||
+        rawRole === "students"
+      ) {
+        return "student";
+      }
+
+      // ---------------------------------------------------
+      // DEFAULT
+      // ---------------------------------------------------
+
+      return "student";
+    }
+
+    // =====================================================
     // BUILD FINAL HISTORY RESPONSE
     // =====================================================
 
@@ -95,15 +147,48 @@ export async function GET() {
         const request =
           requestMap.get(requestId) || null;
 
+        // =================================================
+        // NORMALIZE PERFORMER
+        // =================================================
+
+        const originalPerformedBy =
+          item.performedBy || null;
+
+        const performerRole =
+          normalizePerformerRole(
+            originalPerformedBy
+          );
+
+        const normalizedPerformedBy =
+          originalPerformedBy
+            ? {
+                ...originalPerformedBy,
+                role: performerRole,
+              }
+            : {
+                role: "student",
+              };
+
+        // =================================================
+        // REQUEST NOT FOUND
+        // =================================================
+
         if (!request) {
           return {
             ...item,
 
             requestId,
 
+            performedBy:
+              normalizedPerformedBy,
+
             request: null,
           };
         }
+
+        // =================================================
+        // GET TEACHER
+        // =================================================
 
         const teacher =
           request.instructor
@@ -112,10 +197,17 @@ export async function GET() {
               )
             : null;
 
+        // =================================================
+        // RETURN HISTORY
+        // =================================================
+
         return {
           ...item,
 
           requestId,
+
+          performedBy:
+            normalizedPerformedBy,
 
           request: {
             ...request,

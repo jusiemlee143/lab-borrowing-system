@@ -22,12 +22,22 @@ import {
   FileText,
   Hash,
   Eraser,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 
 import {
   Card,
   CardContent,
 } from "@/components/ui/card";
+
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 import { Input } from "@/components/ui/input";
 
@@ -110,6 +120,7 @@ interface HistoryItem {
     userId?: string | null;
     fullName?: string;
     employeeId?: string;
+    role?: string;
   };
 
   reason?: string;
@@ -119,6 +130,19 @@ interface HistoryItem {
 
   request?: RequestData | null;
 }
+
+// ============================================================
+// ROLE TYPES
+// ============================================================
+
+type RoleFilter =
+  | "all"
+  | "student"
+  | "lab-in-charge";
+
+type NormalizedRole =
+  | "student"
+  | "lab-in-charge";
 
 // ============================================================
 // COMPONENT
@@ -131,8 +155,20 @@ export default function HistoryManager() {
 
   const [search, setSearch] = useState("");
 
+  const [roleFilter, setRoleFilter] =
+    useState<RoleFilter>("all");
+
   const [selectedHistory, setSelectedHistory] =
     useState<HistoryItem | null>(null);
+
+  // ============================================================
+  // PAGINATION
+  // ============================================================
+
+  const ITEMS_PER_PAGE = 5;
+
+  const [currentPage, setCurrentPage] =
+    useState(1);
 
   // ============================================================
   // FETCH HISTORY
@@ -145,6 +181,7 @@ export default function HistoryManager() {
   async function fetchHistory() {
     try {
       setLoading(true);
+      setCurrentPage(1);
 
       const res = await fetch(
         "/api/lab-in-charge/history",
@@ -261,18 +298,83 @@ export default function HistoryManager() {
   }
 
   // ============================================================
-  // SEARCH HISTORY
+  // NORMALIZE PERFORMER ROLE
+  //
+  // IMPORTANT:
+  // This determines WHO performed the history action.
+  //
+  // Example:
+  //
+  // performedBy.role = "lab-in-charge"
+  // => "lab-in-charge"
+  //
+  // performedBy.role = "student"
+  // => "student"
   // ============================================================
 
-  const filteredHistory = history.filter(
-    (item) => {
+  function normalizePerformerRole(
+    performedBy?: HistoryItem["performedBy"]
+  ): NormalizedRole {
+    if (!performedBy) {
+      return "student";
+    }
+
+    const role =
+      normalizeSearchValue(
+        performedBy.role
+      ).replace(/[\s_-]/g, "");
+
+    // ----------------------------------------------------------
+    // LAB-IN-CHARGE
+    // ----------------------------------------------------------
+
+    if (
+      role === "labincharge" ||
+      role === "lic" ||
+      Boolean(
+        performedBy.employeeId?.trim()
+      )
+    ) {
+      return "lab-in-charge";
+    }
+
+    // ----------------------------------------------------------
+    // STUDENT
+    // ----------------------------------------------------------
+
+    return "student";
+  }
+
+  // ============================================================
+  // CHECK ROLE FILTER
+  // ============================================================
+
+  function matchesRoleFilter(
+    item: HistoryItem
+  ) {
+    // All users = don't filter by role
+    if (roleFilter === "all") {
+      return true;
+    }
+
+    const performerRole =
+      normalizePerformerRole(
+        item.performedBy
+      );
+
+    return (
+      performerRole === roleFilter
+    );
+  }
+
+  // ============================================================
+  // SEARCH + FILTER HISTORY
+  // ============================================================
+
+  const filteredHistory =
+    history.filter((item) => {
       const searchValue =
         normalizeSearchValue(search);
-
-      // No search = show everything
-      if (!searchValue) {
-        return true;
-      }
 
       const request =
         item.request;
@@ -283,9 +385,29 @@ export default function HistoryManager() {
       const instructor =
         request?.instructor;
 
-      // --------------------------------------------------------
+      // ========================================================
+      // ROLE FILTER
+      // ========================================================
+
+      const matchesRole =
+        matchesRoleFilter(item);
+
+      // If role does not match, immediately remove record.
+      if (!matchesRole) {
+        return false;
+      }
+
+      // ========================================================
+      // NO SEARCH
+      // ========================================================
+
+      if (!searchValue) {
+        return true;
+      }
+
+      // ========================================================
       // BASIC HISTORY INFORMATION
-      // --------------------------------------------------------
+      // ========================================================
 
       const action =
         normalizeSearchValue(
@@ -309,9 +431,9 @@ export default function HistoryManager() {
           )
         );
 
-      // --------------------------------------------------------
+      // ========================================================
       // PERFORMED BY
-      // --------------------------------------------------------
+      // ========================================================
 
       const performedByName =
         normalizeSearchValue(
@@ -324,13 +446,15 @@ export default function HistoryManager() {
         );
 
       const performedByRole =
-        performedBy?.userId
-          ? "lab-in-charge"
-          : "student";
+        normalizeSearchValue(
+          normalizePerformerRole(
+            performedBy
+          )
+        );
 
-      // --------------------------------------------------------
+      // ========================================================
       // REQUEST INFORMATION
-      // --------------------------------------------------------
+      // ========================================================
 
       const studentName =
         normalizeSearchValue(
@@ -362,9 +486,9 @@ export default function HistoryManager() {
           request?.rejectReason
         );
 
-      // --------------------------------------------------------
+      // ========================================================
       // INSTRUCTOR INFORMATION
-      // --------------------------------------------------------
+      // ========================================================
 
       const instructorName =
         normalizeSearchValue(
@@ -380,9 +504,9 @@ export default function HistoryManager() {
           )
         );
 
-      // --------------------------------------------------------
+      // ========================================================
       // MEMBERS
-      // --------------------------------------------------------
+      // ========================================================
 
       const members =
         request?.members
@@ -393,9 +517,9 @@ export default function HistoryManager() {
           )
           .join(" ") || "";
 
-      // --------------------------------------------------------
+      // ========================================================
       // TOOLS
-      // --------------------------------------------------------
+      // ========================================================
 
       const toolNames =
         request?.cart
@@ -416,13 +540,15 @@ export default function HistoryManager() {
           )
           .join(" ") || "";
 
-      // --------------------------------------------------------
+      // ========================================================
       // DATE INFORMATION
-      // --------------------------------------------------------
+      // ========================================================
 
       const historyDate =
         normalizeSearchValue(
-          formatDate(item.createdAt)
+          formatDate(
+            item.createdAt
+          )
         );
 
       const borrowDate =
@@ -432,11 +558,11 @@ export default function HistoryManager() {
           )
         );
 
-      // --------------------------------------------------------
+      // ========================================================
       // SEARCH ALL FIELDS
-      // --------------------------------------------------------
+      // ========================================================
 
-      return (
+      const matchesSearch =
         action.includes(searchValue) ||
         historyId.includes(searchValue) ||
         requestId.includes(searchValue) ||
@@ -456,10 +582,68 @@ export default function HistoryManager() {
         toolNames.includes(searchValue) ||
         toolIds.includes(searchValue) ||
         historyDate.includes(searchValue) ||
-        borrowDate.includes(searchValue)
-      );
-    }
+        borrowDate.includes(searchValue);
+
+      return matchesSearch;
+    });
+
+  // ============================================================
+  // PAGINATION
+  // ============================================================
+
+  const totalPages = Math.max(
+    1,
+    Math.ceil(
+      filteredHistory.length /
+        ITEMS_PER_PAGE
+    )
   );
+
+  // Make sure current page stays valid
+  useEffect(() => {
+    if (
+      currentPage > totalPages
+    ) {
+      setCurrentPage(totalPages);
+    }
+  }, [
+    currentPage,
+    totalPages,
+  ]);
+
+  const paginatedHistory =
+    filteredHistory.slice(
+      (currentPage - 1) *
+        ITEMS_PER_PAGE,
+      currentPage *
+        ITEMS_PER_PAGE
+    );
+
+  const startIndex =
+    filteredHistory.length === 0
+      ? 0
+      : (currentPage - 1) *
+          ITEMS_PER_PAGE +
+        1;
+
+  const endIndex = Math.min(
+    currentPage *
+      ITEMS_PER_PAGE,
+    filteredHistory.length
+  );
+
+  function goToPage(
+    page: number
+  ) {
+    if (
+      page < 1 ||
+      page > totalPages
+    ) {
+      return;
+    }
+
+    setCurrentPage(page);
+  }
 
   // ============================================================
   // CLEAR SEARCH
@@ -467,6 +651,17 @@ export default function HistoryManager() {
 
   function clearSearch() {
     setSearch("");
+    setCurrentPage(1);
+  }
+
+  // ============================================================
+  // CLEAR ALL FILTERS
+  // ============================================================
+
+  function clearAllFilters() {
+    setSearch("");
+    setRoleFilter("all");
+    setCurrentPage(1);
   }
 
   // ============================================================
@@ -480,9 +675,14 @@ export default function HistoryManager() {
       return "—";
     }
 
-    const date = new Date(dateString);
+    const date =
+      new Date(dateString);
 
-    if (Number.isNaN(date.getTime())) {
+    if (
+      Number.isNaN(
+        date.getTime()
+      )
+    ) {
       return "—";
     }
 
@@ -509,9 +709,14 @@ export default function HistoryManager() {
       return "—";
     }
 
-    const date = new Date(dateString);
+    const date =
+      new Date(dateString);
 
-    if (Number.isNaN(date.getTime())) {
+    if (
+      Number.isNaN(
+        date.getTime()
+      )
+    ) {
       return "—";
     }
 
@@ -633,7 +838,9 @@ export default function HistoryManager() {
     function handleKeyDown(
       event: KeyboardEvent
     ) {
-      if (event.key === "Escape") {
+      if (
+        event.key === "Escape"
+      ) {
         closeModal();
       }
     }
@@ -754,12 +961,14 @@ export default function HistoryManager() {
             </div>
 
             {/* ================================================== */}
-            {/* SEARCH */}
+            {/* SEARCH + ROLE FILTER */}
             {/* ================================================== */}
 
-            <div className="mt-5 flex flex-col gap-2 sm:flex-row sm:items-center">
+            <div className="mt-5 flex flex-col gap-2 lg:flex-row lg:items-center">
 
-              <div className="relative w-full sm:max-w-xl">
+              {/* SEARCH */}
+
+              <div className="relative w-full lg:flex-1">
 
                 <Search
                   className="
@@ -775,11 +984,12 @@ export default function HistoryManager() {
 
                 <Input
                   value={search}
-                  onChange={(e) =>
+                  onChange={(e) => {
                     setSearch(
                       e.target.value
-                    )
-                  }
+                    );
+                    setCurrentPage(1);
+                  }}
                   placeholder="Search student, instructor, action, tool, request ID, employee ID..."
                   className="
                     h-10
@@ -818,13 +1028,69 @@ export default function HistoryManager() {
 
               </div>
 
-              {search && (
+              {/* ROLE FILTER */}
+
+              <Select
+                value={roleFilter}
+                onValueChange={(value) => {
+                  const newRole =
+                    value as RoleFilter;
+
+                  setRoleFilter(
+                    newRole
+                  );
+
+                  // IMPORTANT:
+                  // Always reset pagination
+                  // when changing filter.
+                  setCurrentPage(1);
+                }}
+              >
+
+                <SelectTrigger
+                  className="
+                    h-10
+                    w-full
+                    bg-white
+                    lg:w-52
+                    focus:ring-[#800000]/20
+                  "
+                >
+                  <SelectValue placeholder="Filter by user" />
+                </SelectTrigger>
+
+                <SelectContent>
+
+                  <SelectItem value="all">
+                    All Users
+                  </SelectItem>
+
+                  <SelectItem value="student">
+                    Student
+                  </SelectItem>
+
+                  <SelectItem value="lab-in-charge">
+                    Lab-In-Charge
+                  </SelectItem>
+
+                </SelectContent>
+
+              </Select>
+
+              {/* CLEAR ALL FILTERS */}
+
+              {(search ||
+                roleFilter !==
+                  "all") && (
                 <button
                   type="button"
-                  onClick={clearSearch}
+                  onClick={
+                    clearAllFilters
+                  }
                   className="
                     inline-flex
                     h-10
+                    shrink-0
                     items-center
                     justify-center
                     gap-2
@@ -849,21 +1115,28 @@ export default function HistoryManager() {
 
             </div>
 
-            {/* SEARCH RESULT COUNT */}
+            {/* ================================================== */}
+            {/* FILTER DEBUG / RESULT COUNT */}
+            {/* ================================================== */}
 
             {!loading && (
-              <div className="mt-3 flex items-center gap-2 text-xs text-gray-400">
+              <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-gray-400">
 
                 <Search className="h-3.5 w-3.5" />
 
-                {search ? (
+                {search ||
+                roleFilter !==
+                  "all" ? (
                   <span>
                     Found{" "}
                     <span className="font-semibold text-gray-600">
-                      {filteredHistory.length}
+                      {
+                        filteredHistory.length
+                      }
                     </span>{" "}
                     matching{" "}
-                    {filteredHistory.length === 1
+                    {filteredHistory.length ===
+                    1
                       ? "record"
                       : "records"}
                   </span>
@@ -874,10 +1147,30 @@ export default function HistoryManager() {
                       {history.length}
                     </span>{" "}
                     history{" "}
-                    {history.length === 1
+                    {history.length ===
+                    1
                       ? "record"
                       : "records"}
                   </span>
+                )}
+
+                {roleFilter !==
+                  "all" && (
+                  <>
+                    <span className="text-gray-300">
+                      •
+                    </span>
+
+                    <span>
+                      Filter:{" "}
+                      <span className="font-semibold text-[#800000]">
+                        {roleFilter ===
+                        "student"
+                          ? "Student"
+                          : "Lab-In-Charge"}
+                      </span>
+                    </span>
+                  </>
                 )}
 
               </div>
@@ -924,7 +1217,8 @@ export default function HistoryManager() {
 
             </div>
 
-          ) : filteredHistory.length === 0 ? (
+          ) : filteredHistory.length ===
+            0 ? (
 
             <div
               className="
@@ -954,7 +1248,9 @@ export default function HistoryManager() {
                   text-[#800000]
                 "
               >
-                {search ? (
+                {search ||
+                roleFilter !==
+                  "all" ? (
                   <Search className="h-7 w-7" />
                 ) : (
                   <History className="h-7 w-7" />
@@ -962,21 +1258,35 @@ export default function HistoryManager() {
               </div>
 
               <h3 className="text-base font-semibold text-gray-700">
-                {search
+                {search ||
+                roleFilter !==
+                  "all"
                   ? "No matching history"
                   : "No history found"}
               </h3>
 
               <p className="mt-1 max-w-md text-center text-sm text-gray-400">
+
                 {search
-                  ? `No request activity matches "${search}". Try searching for a student, instructor, action, tool, request ID, or employee ID.`
+                  ? `No request activity matches "${search}".`
+                  : roleFilter ===
+                    "student"
+                  ? "No history records were performed by students."
+                  : roleFilter ===
+                    "lab-in-charge"
+                  ? "No history records were performed by Lab-In-Charge users."
                   : "There are currently no request activity records."}
+
               </p>
 
-              {search && (
+              {(search ||
+                roleFilter !==
+                  "all") && (
                 <button
                   type="button"
-                  onClick={clearSearch}
+                  onClick={
+                    clearAllFilters
+                  }
                   className="
                     mt-4
                     inline-flex
@@ -994,7 +1304,7 @@ export default function HistoryManager() {
                   "
                 >
                   <Eraser className="h-4 w-4" />
-                  Clear Search
+                  Clear Filters
                 </button>
               )}
 
@@ -1040,7 +1350,7 @@ export default function HistoryManager() {
 
                 <tbody>
 
-                  {filteredHistory.map(
+                  {paginatedHistory.map(
                     (item) => {
 
                       const style =
@@ -1050,7 +1360,9 @@ export default function HistoryManager() {
 
                       return (
                         <tr
-                          key={item._id}
+                          key={
+                            item._id
+                          }
                           className="
                             border-b
                             border-gray-100
@@ -1081,7 +1393,9 @@ export default function HistoryManager() {
                             >
                               {style.icon}
 
-                              {item.action}
+                              {
+                                item.action
+                              }
                             </span>
 
                           </td>
@@ -1093,19 +1407,22 @@ export default function HistoryManager() {
                             <div className="min-w-[150px]">
 
                               <p className="font-medium text-gray-800">
-                                {item.request
+                                {item
+                                  .request
                                   ?.studentName ||
                                   "Unknown Student"}
                               </p>
 
                               <p className="mt-1 text-xs text-gray-400">
 
-                                {item.request
+                                {item
+                                  .request
                                   ?.section
                                   ? `Section ${item.request.section}`
                                   : "No section"}
 
-                                {item.request
+                                {item
+                                  .request
                                   ?.groupNumber
                                   ? ` • Group ${item.request.groupNumber}`
                                   : ""}
@@ -1140,7 +1457,8 @@ export default function HistoryManager() {
 
                               <span className="font-medium text-gray-700">
                                 {getTeacherName(
-                                  item.request
+                                  item
+                                    .request
                                     ?.instructor
                                 )}
                               </span>
@@ -1174,11 +1492,16 @@ export default function HistoryManager() {
                               <div className="min-w-0">
 
                                 <p className="truncate font-medium text-gray-800">
-                                  {item.performedBy?.fullName ||
+                                  {item
+                                    .performedBy
+                                    ?.fullName ||
                                     "Unknown User"}
                                 </p>
 
-                                {item.performedBy?.userId ? (
+                                {normalizePerformerRole(
+                                  item.performedBy
+                                ) ===
+                                "lab-in-charge" ? (
 
                                   <div className="mt-0.5 flex items-center gap-1.5">
 
@@ -1186,14 +1509,20 @@ export default function HistoryManager() {
                                       Lab-In-Charge
                                     </span>
 
-                                    {item.performedBy?.employeeId && (
+                                    {item
+                                      .performedBy
+                                      ?.employeeId && (
                                       <>
                                         <span className="text-xs text-gray-300">
                                           •
                                         </span>
 
                                         <span className="text-xs text-gray-400">
-                                          {item.performedBy.employeeId}
+                                          {
+                                            item
+                                              .performedBy
+                                              .employeeId
+                                          }
                                         </span>
                                       </>
                                     )}
@@ -1287,24 +1616,198 @@ export default function HistoryManager() {
           {/* ================================================= */}
 
           {!loading &&
-            filteredHistory.length > 0 && (
-              <div className="mt-4 flex flex-col gap-2 text-xs text-gray-400 sm:flex-row sm:items-center sm:justify-between">
+            filteredHistory.length >
+              0 && (
+              <div className="mt-5 border-t border-gray-100 pt-4">
 
-                <span>
-                  Showing{" "}
-                  <span className="font-semibold text-gray-600">
-                    {filteredHistory.length}
-                  </span>{" "}
-                  of{" "}
-                  <span className="font-semibold text-gray-600">
-                    {history.length}
-                  </span>{" "}
-                  history records
-                </span>
+                <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
 
-                <div className="flex items-center gap-1">
-                  <History className="h-3.5 w-3.5" />
-                  Request Audit Trail
+                  {/* RECORD COUNT */}
+
+                  <div className="flex items-center gap-2 text-xs text-gray-400">
+
+                    <History className="h-3.5 w-3.5" />
+
+                    <span>
+                      Showing{" "}
+                      <span className="font-semibold text-gray-700">
+                        {
+                          startIndex
+                        }
+                      </span>
+                      {"–"}
+                      <span className="font-semibold text-gray-700">
+                        {endIndex}
+                      </span>
+                      {" of "}
+                      <span className="font-semibold text-gray-700">
+                        {
+                          filteredHistory.length
+                        }
+                      </span>{" "}
+                      history records
+                    </span>
+
+                  </div>
+
+                  {/* PAGINATION */}
+
+                  {totalPages >
+                    1 && (
+                    <div className="flex items-center justify-between gap-2 sm:justify-end">
+
+                      {/* PREVIOUS */}
+
+                      <button
+                        type="button"
+                        onClick={() =>
+                          goToPage(
+                            currentPage -
+                              1
+                          )
+                        }
+                        disabled={
+                          currentPage ===
+                          1
+                        }
+                        className="
+                          inline-flex
+                          h-9
+                          items-center
+                          justify-center
+                          gap-1.5
+                          rounded-lg
+                          border
+                          border-gray-200
+                          bg-white
+                          px-3
+                          text-xs
+                          font-semibold
+                          text-gray-600
+                          transition
+                          hover:border-[#800000]/20
+                          hover:bg-[#800000]/5
+                          hover:text-[#800000]
+                          disabled:cursor-not-allowed
+                          disabled:opacity-40
+                        "
+                      >
+                        <ChevronLeft className="h-4 w-4" />
+
+                        <span className="hidden sm:inline">
+                          Previous
+                        </span>
+
+                      </button>
+
+                      {/* PAGE NUMBERS */}
+
+                      <div className="flex items-center gap-1">
+
+                        {Array.from(
+                          {
+                            length:
+                              totalPages,
+                          },
+                          (
+                            _,
+                            index
+                          ) =>
+                            index +
+                            1
+                        ).map(
+                          (
+                            page
+                          ) => (
+
+                            <button
+                              key={
+                                page
+                              }
+                              type="button"
+                              onClick={() =>
+                                goToPage(
+                                  page
+                                )
+                              }
+                              className={`
+                                flex
+                                h-9
+                                min-w-9
+                                items-center
+                                justify-center
+                                rounded-lg
+                                border
+                                px-2.5
+                                text-xs
+                                font-semibold
+                                transition
+                                ${
+                                  currentPage ===
+                                  page
+                                    ? "border-[#800000] bg-[#800000] text-[#FFD700] shadow-sm"
+                                    : "border-gray-200 bg-white text-gray-600 hover:border-[#800000]/20 hover:bg-[#800000]/5 hover:text-[#800000]"
+                                }
+                              `}
+                            >
+                              {
+                                page
+                              }
+                            </button>
+
+                          )
+                        )}
+
+                      </div>
+
+                      {/* NEXT */}
+
+                      <button
+                        type="button"
+                        onClick={() =>
+                          goToPage(
+                            currentPage +
+                              1
+                          )
+                        }
+                        disabled={
+                          currentPage ===
+                          totalPages
+                        }
+                        className="
+                          inline-flex
+                          h-9
+                          items-center
+                          justify-center
+                          gap-1.5
+                          rounded-lg
+                          border
+                          border-gray-200
+                          bg-white
+                          px-3
+                          text-xs
+                          font-semibold
+                          text-gray-600
+                          transition
+                          hover:border-[#800000]/20
+                          hover:bg-[#800000]/5
+                          hover:text-[#800000]
+                          disabled:cursor-not-allowed
+                          disabled:opacity-40
+                        "
+                      >
+
+                        <span className="hidden sm:inline">
+                          Next
+                        </span>
+
+                        <ChevronRight className="h-4 w-4" />
+
+                      </button>
+
+                    </div>
+                  )}
+
                 </div>
 
               </div>
@@ -1428,9 +1931,7 @@ export default function HistoryManager() {
 
             <div className="overflow-y-auto p-5">
 
-              {/* ================================================= */}
               {/* ACTION + STATUS */}
-              {/* ================================================= */}
 
               <div className="mb-5 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-gray-200 bg-gray-50 p-4">
 
@@ -1511,9 +2012,7 @@ export default function HistoryManager() {
 
               </div>
 
-              {/* ================================================= */}
               {/* REQUEST ID */}
-              {/* ================================================= */}
 
               <div className="mb-5 rounded-xl border border-gray-200 bg-white p-4">
 
@@ -1533,9 +2032,7 @@ export default function HistoryManager() {
 
               </div>
 
-              {/* ================================================= */}
               {/* STUDENT INFORMATION */}
-              {/* ================================================= */}
 
               <div className="mb-5">
 
@@ -1600,9 +2097,7 @@ export default function HistoryManager() {
 
               </div>
 
-              {/* ================================================= */}
               {/* ACTIVITY INFORMATION */}
-              {/* ================================================= */}
 
               <div className="mb-5">
 
@@ -1663,9 +2158,7 @@ export default function HistoryManager() {
 
               </div>
 
-              {/* ================================================= */}
               {/* INSTRUCTOR */}
-              {/* ================================================= */}
 
               <div className="mb-5">
 
@@ -1707,9 +2200,7 @@ export default function HistoryManager() {
 
               </div>
 
-              {/* ================================================= */}
               {/* MEMBERS */}
-              {/* ================================================= */}
 
               <div className="mb-5">
 
@@ -1728,13 +2219,18 @@ export default function HistoryManager() {
                   {selectedHistory
                     .request
                     ?.members &&
-                  selectedHistory.request
-                    .members.length > 0 ? (
+                  selectedHistory
+                    .request
+                    .members.length >
+                    0 ? (
 
                     <div className="grid gap-2 sm:grid-cols-2">
 
                       {selectedHistory.request.members.map(
-                        (member, index) => (
+                        (
+                          member,
+                          index
+                        ) => (
                           <div
                             key={`${member}-${index}`}
                             className="
@@ -1749,7 +2245,9 @@ export default function HistoryManager() {
                             "
                           >
                             <span className="mr-2 text-xs text-gray-400">
-                              {index + 1}.
+                              {index +
+                                1}
+                              .
                             </span>
 
                             {member ||
@@ -1772,9 +2270,7 @@ export default function HistoryManager() {
 
               </div>
 
-              {/* ================================================= */}
               {/* TOOLS */}
-              {/* ================================================= */}
 
               <div className="mb-5">
 
@@ -1793,8 +2289,10 @@ export default function HistoryManager() {
                   {selectedHistory
                     .request
                     ?.cart &&
-                  selectedHistory.request
-                    .cart.length > 0 ? (
+                  selectedHistory
+                    .request
+                    .cart.length >
+                    0 ? (
 
                     <table className="w-full text-sm">
 
@@ -1817,7 +2315,10 @@ export default function HistoryManager() {
                       <tbody>
 
                         {selectedHistory.request.cart.map(
-                          (tool, index) => (
+                          (
+                            tool,
+                            index
+                          ) => (
                             <tr
                               key={
                                 tool._id ||
@@ -1856,9 +2357,7 @@ export default function HistoryManager() {
 
               </div>
 
-              {/* ================================================= */}
               {/* REJECTION REASON */}
-              {/* ================================================= */}
 
               {selectedHistory.request
                 ?.rejectReason && (
@@ -1885,9 +2384,7 @@ export default function HistoryManager() {
                 </div>
               )}
 
-              {/* ================================================= */}
               {/* REQUEST TIMELINE */}
-              {/* ================================================= */}
 
               <div className="mb-5">
 
@@ -2063,9 +2560,7 @@ export default function HistoryManager() {
 
               </div>
 
-              {/* ================================================= */}
               {/* HISTORY ACTION PERFORMER */}
-              {/* ================================================= */}
 
               <div className="rounded-xl border border-[#800000]/10 bg-[#800000]/5 p-4">
 
@@ -2115,8 +2610,10 @@ export default function HistoryManager() {
                     )}
 
                     <p className="mt-1 text-xs text-gray-400">
-                      {selectedHistory.performedBy
-                        ?.userId
+                      {normalizePerformerRole(
+                        selectedHistory.performedBy
+                      ) ===
+                      "lab-in-charge"
                         ? "Lab-In-Charge"
                         : "Student"}
                     </p>
@@ -2133,9 +2630,7 @@ export default function HistoryManager() {
 
               </div>
 
-              {/* ================================================= */}
               {/* HISTORY REASON */}
-              {/* ================================================= */}
 
               {selectedHistory.reason && (
                 <div className="mt-4 rounded-xl border border-gray-200 bg-gray-50 p-4">
@@ -2145,7 +2640,9 @@ export default function HistoryManager() {
                   </p>
 
                   <p className="mt-2 text-sm text-gray-700">
-                    {selectedHistory.reason}
+                    {
+                      selectedHistory.reason
+                    }
                   </p>
 
                 </div>
@@ -2191,4 +2688,3 @@ export default function HistoryManager() {
     </>
   );
 }
-

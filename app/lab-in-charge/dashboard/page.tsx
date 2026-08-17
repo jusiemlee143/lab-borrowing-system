@@ -4,7 +4,9 @@ import RequestsManager from "@/components/requests/RequestsManager"
 import EditToolModal from "@/components/EditToolModal"
 import DeleteToolDialog from "@/components/DeleteToolDialog"
 import HistoryManager from "@/components/history/HistoryManager"
+
 import { useState, useEffect } from "react"
+
 import {
   Search,
   LogOut,
@@ -19,8 +21,10 @@ import {
   Boxes,
   Activity,
   ShieldCheck,
-  ChevronRight,
   RefreshCw,
+  Settings,
+  FlaskConical,
+  Wrench,
 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
@@ -147,21 +151,44 @@ export default function LabInChargePage() {
       setTools(normalizedTools)
 
       setStats({
-        totalTools: dashboardData?.totalTools ?? normalizedTools.length,
-        availableTools: dashboardData?.availableTools ?? 0,
-        lowStock: dashboardData?.lowStock ?? 0,
-        unavailable: dashboardData?.unavailable ?? 0,
-        pending: dashboardData?.pending ?? 0,
-        approved: dashboardData?.approved ?? 0,
-        released: dashboardData?.released ?? 0,
-        returned: dashboardData?.returned ?? 0,
-        rejected: dashboardData?.rejected ?? 0,
-        borrowedToday: dashboardData?.borrowedToday ?? 0,
-        returnedToday: dashboardData?.returnedToday ?? 0,
+        totalTools:
+          dashboardData?.totalTools ?? normalizedTools.length,
+
+        availableTools:
+          dashboardData?.availableTools ?? 0,
+
+        lowStock:
+          dashboardData?.lowStock ?? 0,
+
+        unavailable:
+          dashboardData?.unavailable ?? 0,
+
+        pending:
+          dashboardData?.pending ?? 0,
+
+        approved:
+          dashboardData?.approved ?? 0,
+
+        released:
+          dashboardData?.released ?? 0,
+
+        returned:
+          dashboardData?.returned ?? 0,
+
+        rejected:
+          dashboardData?.rejected ?? 0,
+
+        borrowedToday:
+          dashboardData?.borrowedToday ?? 0,
+
+        returnedToday:
+          dashboardData?.returnedToday ?? 0,
       })
     } catch (err) {
       console.error("Fetch error:", err)
+
       setTools([])
+
       toast.error("Unable to load dashboard data.")
     } finally {
       setLoading(false)
@@ -173,9 +200,13 @@ export default function LabInChargePage() {
   // ============================================================
 
   const handleLogout = async () => {
-    await fetch("/api/auth/logout", {
-      method: "POST",
-    })
+    try {
+      await fetch("/api/auth/logout", {
+        method: "POST",
+      })
+    } catch (error) {
+      console.error("Logout error:", error)
+    }
 
     router.push("/lab-in-charge")
   }
@@ -227,6 +258,7 @@ export default function LabInChargePage() {
       setIsAddingItem(false)
     } catch (err) {
       console.error(err)
+
       toast.error("Unable to add tool.")
     }
   }
@@ -265,21 +297,7 @@ export default function LabInChargePage() {
   // ============================================================
 
   if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-[#fafafa]">
-        <div className="flex flex-col items-center gap-4">
-          <div className="w-12 h-12 rounded-xl bg-[#800000] flex items-center justify-center shadow-lg">
-            <Cpu className="w-6 h-6 text-[#FFD700] animate-pulse" />
-          </div>
-
-          <Spinner />
-
-          <p className="text-sm text-gray-500">
-            Loading laboratory dashboard...
-          </p>
-        </div>
-      </div>
-    )
+    return <LabLoadingScreen />
   }
 
   // ============================================================
@@ -287,14 +305,14 @@ export default function LabInChargePage() {
   // ============================================================
 
   return (
-    <div className="min-h-screen bg-[#fafafa] text-gray-800 relative overflow-x-hidden">
+    <div className="relative min-h-screen overflow-x-hidden bg-[#fafafa] text-gray-800">
 
       {/* ====================================================== */}
       {/* TECHNOLOGY BACKGROUND */}
       {/* ====================================================== */}
 
       <div
-        className="fixed inset-0 pointer-events-none opacity-[0.025]"
+        className="pointer-events-none fixed inset-0 opacity-[0.025]"
         style={{
           backgroundImage: `
             linear-gradient(#800000 1px, transparent 1px),
@@ -305,36 +323,114 @@ export default function LabInChargePage() {
       />
 
       {/* ====================================================== */}
+      {/* DECORATIVE TECHNOLOGY ELEMENTS */}
+      {/* ====================================================== */}
+
+      <div className="pointer-events-none fixed inset-0 overflow-hidden">
+
+        {/* ================================================== */}
+        {/* TOP CIRCUIT */}
+        {/* ================================================== */}
+
+        <div className="absolute left-0 top-[12%] h-px w-[28%] bg-[#800000]/10" />
+
+        <div className="absolute left-[28%] top-[12%] h-24 w-px bg-[#800000]/10" />
+
+        <div className="absolute left-[28%] top-[calc(12%+6rem)] h-px w-24 bg-[#800000]/10" />
+
+        {/* ================================================== */}
+        {/* BOTTOM CIRCUIT */}
+        {/* ================================================== */}
+
+        <div className="absolute bottom-[18%] right-0 h-px w-[28%] bg-[#800000]/10" />
+
+        <div className="absolute bottom-[18%] right-[28%] h-24 w-px bg-[#800000]/10" />
+
+        <div className="absolute bottom-[calc(18%+6rem)] right-[28%] h-px w-24 bg-[#800000]/10" />
+
+        {/* ================================================== */}
+        {/* GOLD NODES */}
+        {/* ================================================== */}
+
+        <div className="absolute left-[27.5%] top-[11.4%] h-2 w-2 rounded-full bg-[#FFD700]" />
+
+        <div className="absolute left-[calc(28%+5.5rem)] top-[calc(12%+5.5rem)] h-2 w-2 rounded-full bg-[#FFD700]" />
+
+        <div className="absolute bottom-[17.4%] right-[27.5%] h-2 w-2 rounded-full bg-[#FFD700]" />
+
+        {/* ================================================== */}
+        {/* LARGE GEARS */}
+        {/* ================================================== */}
+
+        <Settings
+          className="absolute -right-28 top-24 h-96 w-96 text-[#800000]/[0.025]"
+          strokeWidth={1}
+        />
+
+        <Settings
+          className="absolute -left-32 bottom-0 h-[28rem] w-[28rem] text-[#800000]/[0.025]"
+          strokeWidth={1}
+        />
+
+        {/* ================================================== */}
+        {/* TECHNOLOGY ICONS */}
+        {/* ================================================== */}
+
+        <Cpu
+          className="absolute right-[8%] top-[24%] h-10 w-10 text-[#800000]/[0.07]"
+          strokeWidth={1.5}
+        />
+
+        <CircuitBoard
+          className="absolute bottom-[22%] left-[8%] h-10 w-10 text-[#800000]/[0.07]"
+          strokeWidth={1.5}
+        />
+
+        <FlaskConical
+          className="absolute left-[17%] top-[30%] h-8 w-8 text-[#800000]/[0.05]"
+          strokeWidth={1.5}
+        />
+
+        <Wrench
+          className="absolute bottom-[30%] right-[15%] h-8 w-8 text-[#800000]/[0.05]"
+          strokeWidth={1.5}
+        />
+
+      </div>
+
+      {/* ====================================================== */}
       {/* HEADER */}
       {/* ====================================================== */}
 
-      <header className="sticky top-0 z-50 bg-white/95 backdrop-blur-md border-b border-[#800000]/10 shadow-sm">
+      <header className="sticky top-0 z-50 border-b border-[#800000]/10 bg-white/95 shadow-sm backdrop-blur-md">
 
-        <div className="max-w-[1500px] mx-auto px-5 sm:px-7 lg:px-10">
+        <div className="mx-auto max-w-[1500px] px-5 sm:px-7 lg:px-10">
 
-          <div className="h-[76px] flex items-center justify-between gap-4">
+          <div className="flex h-[76px] items-center justify-between gap-4">
 
-            {/* ================= LEFT ================= */}
+            {/* ==================================================
+                LEFT
+            ================================================== */}
 
-            <div className="flex items-center gap-3 min-w-0">
+            <div className="flex min-w-0 items-center gap-3">
 
               {/* LOGO */}
 
               <div
                 className="
                   relative
-                  w-[54px]
-                  h-[54px]
-                  shrink-0
-                  rounded-xl
-                  bg-white
-                  border
-                  border-[#FFD700]/70
-                  shadow-sm
                   flex
+                  h-[54px]
+                  w-[54px]
+                  shrink-0
                   items-center
                   justify-center
                   overflow-hidden
+                  rounded-xl
+                  border
+                  border-[#FFD700]/70
+                  bg-white
+                  shadow-sm
                 "
               >
 
@@ -352,7 +448,7 @@ export default function LabInChargePage() {
                 <img
                   src="/logo/OfficialLogo.png"
                   alt="Lab Borrowing System Logo"
-                  className="relative z-10 w-[43px] h-[43px] object-contain"
+                  className="relative z-10 h-[43px] w-[43px] object-contain"
                 />
 
               </div>
@@ -363,18 +459,21 @@ export default function LabInChargePage() {
 
                 <div className="flex items-center gap-2">
 
-                  <h1 className="text-lg sm:text-xl font-bold text-[#800000] truncate">
+                  <h1 className="truncate text-lg font-bold text-[#800000] sm:text-xl">
                     Lab-in-Charge
                   </h1>
 
-                  <span className="hidden sm:flex items-center gap-1 text-[10px] uppercase tracking-wider text-[#800000]/50 font-semibold">
-                    <Activity className="w-3 h-3" />
+                  <span className="hidden items-center gap-1 text-[10px] font-semibold uppercase tracking-wider text-[#800000]/50 sm:flex">
+
+                    <Activity className="h-3 w-3" />
+
                     Dashboard
+
                   </span>
 
                 </div>
 
-                <p className="text-xs sm:text-sm text-gray-500 truncate">
+                <p className="truncate text-xs text-gray-500 sm:text-sm">
                   Inventory & Request Management
                 </p>
 
@@ -382,47 +481,82 @@ export default function LabInChargePage() {
 
             </div>
 
-            {/* ================= RIGHT ================= */}
+            {/* ==================================================
+                RIGHT
+            ================================================== */}
 
             <div className="flex items-center gap-2">
+
+              {/* DESKTOP REFRESH */}
 
               <Button
                 variant="ghost"
                 onClick={fetchData}
                 className="
-                  hidden sm:flex
+                  hidden
                   h-9
                   px-3
                   text-gray-500
-                  hover:text-[#800000]
                   hover:bg-[#800000]/5
+                  hover:text-[#800000]
+                  sm:flex
                 "
                 title="Refresh dashboard"
               >
-                <RefreshCw className="w-4 h-4 mr-2" />
+
+                <RefreshCw className="mr-2 h-4 w-4" />
+
                 Refresh
+
               </Button>
+
+              {/* MOBILE REFRESH */}
+
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={fetchData}
+                className="
+                  h-9
+                  w-9
+                  text-gray-500
+                  hover:bg-[#800000]/5
+                  hover:text-[#800000]
+                  sm:hidden
+                "
+                title="Refresh dashboard"
+              >
+
+                <RefreshCw className="h-4 w-4" />
+
+              </Button>
+
+              {/* LOGOUT */}
 
               <Button
                 onClick={handleLogout}
                 variant="outline"
                 className="
-                  h-9
-                  px-3 sm:px-4
                   flex
+                  h-9
                   items-center
                   gap-2
+                  rounded-lg
                   border-[#800000]/20
+                  px-3
                   text-[#800000]
                   hover:bg-[#800000]
                   hover:text-[#FFD700]
-                  rounded-lg
+                  sm:px-4
                 "
               >
-                <LogOut className="w-4 h-4" />
+
+                <LogOut className="h-4 w-4" />
+
                 <span className="hidden sm:inline">
                   Log Out
                 </span>
+
               </Button>
 
             </div>
@@ -431,7 +565,7 @@ export default function LabInChargePage() {
 
         </div>
 
-        {/* GOLD ACCENT LINE */}
+        {/* GOLD ACCENT */}
 
         <div className="h-[2px] bg-gradient-to-r from-[#800000] via-[#FFD700] to-[#800000]" />
 
@@ -441,21 +575,21 @@ export default function LabInChargePage() {
       {/* MAIN */}
       {/* ====================================================== */}
 
-      <main className="relative max-w-[1500px] mx-auto px-5 sm:px-7 lg:px-10 py-7">
+      <main className="relative z-10 mx-auto max-w-[1500px] px-5 py-7 sm:px-7 lg:px-10">
 
-        {/* ==================================================== */}
-        {/* PAGE INTRO */}
-        {/* ==================================================== */}
+        {/* ====================================================
+            PAGE INTRO
+        ==================================================== */}
 
         <section className="mb-7">
 
-          <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
 
             <div>
 
-              <div className="flex items-center gap-2 mb-2">
+              <div className="mb-2 flex items-center gap-2">
 
-                <span className="w-2 h-2 rounded-full bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.5)]" />
+                <span className="h-2 w-2 rounded-full bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.5)]" />
 
                 <span className="text-xs font-semibold text-green-600">
                   System Ready
@@ -463,7 +597,7 @@ export default function LabInChargePage() {
 
               </div>
 
-              <h2 className="text-2xl sm:text-3xl font-bold tracking-tight text-[#800000]">
+              <h2 className="text-2xl font-bold tracking-tight text-[#800000] sm:text-3xl">
                 Laboratory Overview
               </h2>
 
@@ -473,26 +607,29 @@ export default function LabInChargePage() {
 
             </div>
 
-            <div className="hidden md:flex items-center gap-2 text-xs text-gray-400">
-              <CircuitBoard className="w-4 h-4 text-[#800000]/50" />
+            <div className="hidden items-center gap-2 text-xs text-gray-400 md:flex">
+
+              <CircuitBoard className="h-4 w-4 text-[#800000]/50" />
+
               Laboratory Technology Platform
+
             </div>
 
           </div>
 
         </section>
 
-        {/* ==================================================== */}
-        {/* INVENTORY STATS */}
-        {/* ==================================================== */}
+        {/* ====================================================
+            INVENTORY STATS
+        ==================================================== */}
 
-        <section className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+        <section className="mb-6 grid grid-cols-2 gap-4 lg:grid-cols-4">
 
           <DashboardStat
             title="Total Tools"
             value={tools.length}
             label="tool types"
-            icon={<Package className="w-5 h-5" />}
+            icon={<Package className="h-5 w-5" />}
             accent="maroon"
           />
 
@@ -500,7 +637,7 @@ export default function LabInChargePage() {
             title="Available"
             value={stats.availableTools}
             label="items"
-            icon={<Boxes className="w-5 h-5" />}
+            icon={<Boxes className="h-5 w-5" />}
             accent="green"
           />
 
@@ -508,7 +645,7 @@ export default function LabInChargePage() {
             title="Low Stock"
             value={stats.lowStock}
             label="items"
-            icon={<AlertCircle className="w-5 h-5" />}
+            icon={<AlertCircle className="h-5 w-5" />}
             accent="gold"
           />
 
@@ -516,25 +653,25 @@ export default function LabInChargePage() {
             title="Unavailable"
             value={stats.unavailable}
             label="items"
-            icon={<Package className="w-5 h-5" />}
+            icon={<Package className="h-5 w-5" />}
             accent="red"
           />
 
         </section>
 
-        {/* ==================================================== */}
-        {/* REQUEST STATS */}
-        {/* ==================================================== */}
+        {/* ====================================================
+            REQUEST STATS
+        ==================================================== */}
 
         <section className="mb-8">
 
-          <div className="flex items-center gap-3 mb-4">
+          <div className="mb-4 flex items-center gap-3">
 
             <div className="h-px flex-1 bg-gray-200" />
 
             <div className="flex items-center gap-2 px-3">
 
-              <Activity className="w-4 h-4 text-[#800000]" />
+              <Activity className="h-4 w-4 text-[#800000]" />
 
               <span className="text-xs font-semibold uppercase tracking-[0.15em] text-[#800000]/60">
                 Request Activity
@@ -546,83 +683,83 @@ export default function LabInChargePage() {
 
           </div>
 
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">
 
             <SmallStat
               title="Pending"
               value={stats.pending}
               label="requests"
-              icon={<User className="w-4 h-4" />}
-              iconClass="text-blue-600 bg-blue-50"
+              icon={<User className="h-4 w-4" />}
+              iconClass="bg-blue-50 text-blue-600"
             />
 
             <SmallStat
               title="Approved"
               value={stats.approved}
               label="requests"
-              icon={<ShieldCheck className="w-4 h-4" />}
-              iconClass="text-green-600 bg-green-50"
+              icon={<ShieldCheck className="h-4 w-4" />}
+              iconClass="bg-green-50 text-green-600"
             />
 
             <SmallStat
               title="Released"
               value={stats.released}
               label="borrowed"
-              icon={<Package className="w-4 h-4" />}
-              iconClass="text-indigo-600 bg-indigo-50"
+              icon={<Package className="h-4 w-4" />}
+              iconClass="bg-indigo-50 text-indigo-600"
             />
 
             <SmallStat
               title="Returned"
               value={stats.returned}
               label="completed"
-              icon={<RefreshCw className="w-4 h-4" />}
-              iconClass="text-purple-600 bg-purple-50"
+              icon={<RefreshCw className="h-4 w-4" />}
+              iconClass="bg-purple-50 text-purple-600"
             />
 
             <SmallStat
               title="Rejected"
               value={stats.rejected}
               label="requests"
-              icon={<AlertCircle className="w-4 h-4" />}
-              iconClass="text-red-600 bg-red-50"
+              icon={<AlertCircle className="h-4 w-4" />}
+              iconClass="bg-red-50 text-red-600"
             />
 
           </div>
 
         </section>
 
-            {/* ==================================================== */}
-            {/* TODAY */}
-            {/* ==================================================== */}
+        {/* ====================================================
+            TODAY
+        ==================================================== */}
 
-      <section className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4 mb-8">
+        <section className="mb-8 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">
 
-        <TodayCard
-          title="Borrowed Today"
-          value={stats.borrowedToday}
-          icon={<Package className="w-5 h-5" />}
-          accent="cyan"
-        />
+          <TodayCard
+            title="Borrowed Today"
+            value={stats.borrowedToday}
+            icon={<Package className="h-5 w-5" />}
+            accent="cyan"
+          />
 
-        <TodayCard
-          title="Returned Today"
-          value={stats.returnedToday}
-          icon={<RefreshCw className="w-5 h-5" />}
-          accent="emerald"
-        />
+          <TodayCard
+            title="Returned Today"
+            value={stats.returnedToday}
+            icon={<RefreshCw className="h-5 w-5" />}
+            accent="emerald"
+          />
 
-      </section>
+        </section>
 
-        {/* ==================================================== */}
-        {/* REQUEST MANAGER */}
-        {/* ==================================================== */}
+        {/* ====================================================
+            REQUEST MANAGER
+        ==================================================== */}
 
         <section className="mb-8">
 
-          <div className="flex items-center gap-2 mb-4">
+          <div className="mb-4 flex items-center gap-2">
 
-            <div className="w-1 h-6 rounded-full bg-[#800000]" />
+            <div className="h-6 w-1 rounded-full bg-[#800000]" />
 
             <h2 className="text-xl font-bold text-[#800000]">
               Borrowing Requests
@@ -633,15 +770,16 @@ export default function LabInChargePage() {
           <RequestsManager />
 
         </section>
-        {/* ==================================================== */}
-        {/* REQUEST HISTORY */}
-        {/* ==================================================== */}
+
+        {/* ====================================================
+            REQUEST HISTORY
+        ==================================================== */}
 
         <section className="mb-8">
 
-          <div className="flex items-center gap-2 mb-4">
+          <div className="mb-4 flex items-center gap-2">
 
-            <div className="w-1 h-6 rounded-full bg-[#800000]" />
+            <div className="h-6 w-1 rounded-full bg-[#800000]" />
 
             <h2 className="text-xl font-bold text-[#800000]">
               Request History
@@ -653,24 +791,26 @@ export default function LabInChargePage() {
 
         </section>
 
-        {/* ==================================================== */}
-        {/* INVENTORY */}
-        {/* ==================================================== */}
+        {/* ====================================================
+            INVENTORY
+        ==================================================== */}
 
-        <Card className="bg-white border border-gray-200 rounded-2xl shadow-sm overflow-hidden">
+        <Card className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
 
-          {/* CARD HEADER */}
+          {/* HEADER */}
 
           <CardHeader className="border-b border-gray-100 bg-white">
 
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
 
               <div>
 
                 <div className="flex items-center gap-2">
 
-                  <div className="w-9 h-9 rounded-lg bg-[#800000]/5 text-[#800000] flex items-center justify-center">
-                    <Database className="w-4 h-4" />
+                  <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-[#800000]/5 text-[#800000]">
+
+                    <Database className="h-4 w-4" />
+
                   </div>
 
                   <CardTitle className="text-lg font-bold text-[#800000]">
@@ -679,48 +819,53 @@ export default function LabInChargePage() {
 
                 </div>
 
-                <p className="text-sm text-gray-500 mt-2 ml-11">
+                <p className="ml-11 mt-2 text-sm text-gray-500">
                   Manage laboratory tools and available quantities.
                 </p>
 
               </div>
 
               <Button
-                onClick={() => setIsAddingItem(!isAddingItem)}
+                onClick={() =>
+                  setIsAddingItem(!isAddingItem)
+                }
                 className="
-                  bg-[#800000]
-                  text-[#FFD700]
-                  hover:bg-[#660000]
-                  rounded-lg
                   h-10
+                  rounded-lg
+                  bg-[#800000]
                   px-4
+                  text-[#FFD700]
                   shadow-sm
+                  hover:bg-[#660000]
                 "
               >
-                <Plus className="w-4 h-4 mr-2" />
+
+                <Plus className="mr-2 h-4 w-4" />
+
                 Add New Item
+
               </Button>
 
             </div>
 
           </CardHeader>
 
-          {/* ================================================== */}
-          {/* ADD ITEM FORM */}
-          {/* ================================================== */}
+          {/* ==================================================
+              ADD ITEM
+          ================================================== */}
 
           {isAddingItem && (
 
-            <CardContent className="bg-[#fafafa] border-b border-gray-100 p-5">
+            <CardContent className="border-b border-gray-100 bg-[#fafafa] p-5">
 
               <form
                 onSubmit={handleAddItem}
-                className="grid grid-cols-1 sm:grid-cols-[1fr_150px_auto] gap-4 items-end"
+                className="grid grid-cols-1 items-end gap-4 sm:grid-cols-[1fr_150px_auto]"
               >
 
                 <div>
 
-                  <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                  <label className="mb-1.5 block text-sm font-medium text-gray-700">
                     Item Name
                   </label>
 
@@ -737,7 +882,7 @@ export default function LabInChargePage() {
 
                 <div>
 
-                  <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                  <label className="mb-1.5 block text-sm font-medium text-gray-700">
                     Quantity
                   </label>
 
@@ -758,7 +903,7 @@ export default function LabInChargePage() {
 
                   <Button
                     type="submit"
-                    className="bg-green-600 hover:bg-green-700 h-10"
+                    className="h-10 bg-green-600 hover:bg-green-700"
                   >
                     Save
                   </Button>
@@ -782,15 +927,15 @@ export default function LabInChargePage() {
 
           )}
 
-          {/* ================================================== */}
-          {/* INVENTORY CONTENT */}
-          {/* ================================================== */}
+          {/* ==================================================
+              INVENTORY CONTENT
+          ================================================== */}
 
           <CardContent className="p-5">
 
             {/* SEARCH + FILTER */}
 
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-5">
+            <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
 
               <div className="relative w-full sm:max-w-md">
 
@@ -799,16 +944,16 @@ export default function LabInChargePage() {
                     absolute
                     left-3
                     top-1/2
-                    -translate-y-1/2
                     h-4
                     w-4
+                    -translate-y-1/2
                     text-gray-400
                   "
                 />
 
                 <Input
                   placeholder="Search inventory..."
-                  className="pl-9 h-10 bg-white"
+                  className="h-10 bg-white pl-9"
                   value={search}
                   onChange={(e) =>
                     setSearch(e.target.value)
@@ -822,8 +967,10 @@ export default function LabInChargePage() {
                 defaultValue="all"
               >
 
-                <SelectTrigger className="w-full sm:w-48 h-10 border-gray-200">
+                <SelectTrigger className="h-10 w-full border-gray-200 sm:w-48">
+
                   <SelectValue placeholder="Filter Status" />
+
                 </SelectTrigger>
 
                 <SelectContent>
@@ -850,31 +997,31 @@ export default function LabInChargePage() {
 
             </div>
 
-            {/* ================================================= */}
-            {/* TABLE */}
-            {/* ================================================= */}
+            {/* =================================================
+                TABLE
+            ================================================= */}
 
             <div className="overflow-x-auto rounded-xl border border-gray-200">
 
               <table className="w-full text-sm">
 
-                <thead className="bg-[#fafafa] border-b border-gray-200">
+                <thead className="border-b border-gray-200 bg-[#fafafa]">
 
                   <tr>
 
-                    <th className="py-3.5 px-4 text-left text-[#800000] font-semibold">
+                    <th className="px-4 py-3.5 text-left font-semibold text-[#800000]">
                       Tool Name
                     </th>
 
-                    <th className="py-3.5 px-4 text-left text-[#800000] font-semibold">
+                    <th className="px-4 py-3.5 text-left font-semibold text-[#800000]">
                       Quantity
                     </th>
 
-                    <th className="py-3.5 px-4 text-center text-[#800000] font-semibold">
+                    <th className="px-4 py-3.5 text-center font-semibold text-[#800000]">
                       Status
                     </th>
 
-                    <th className="py-3.5 px-4 text-right text-[#800000] font-semibold">
+                    <th className="px-4 py-3.5 text-right font-semibold text-[#800000]">
                       Actions
                     </th>
 
@@ -893,18 +1040,22 @@ export default function LabInChargePage() {
                         className="
                           border-b
                           border-gray-100
+                          transition-colors
                           last:border-0
                           hover:bg-[#800000]/[0.02]
-                          transition-colors
                         "
                       >
 
-                        <td className="py-4 px-4">
+                        {/* TOOL */}
+
+                        <td className="px-4 py-4">
 
                           <div className="flex items-center gap-3">
 
-                            <div className="w-9 h-9 rounded-lg bg-[#800000]/5 text-[#800000] flex items-center justify-center">
-                              <Package className="w-4 h-4" />
+                            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-[#800000]/5 text-[#800000]">
+
+                              <Package className="h-4 w-4" />
+
                             </div>
 
                             <span className="font-medium text-gray-900">
@@ -915,20 +1066,24 @@ export default function LabInChargePage() {
 
                         </td>
 
-                        <td className="py-4 px-4 text-gray-600">
+                        {/* QUANTITY */}
+
+                        <td className="px-4 py-4 text-gray-600">
                           {tool.quantity}
                         </td>
 
-                        <td className="py-4 px-4 text-center">
+                        {/* STATUS */}
+
+                        <td className="px-4 py-4 text-center">
 
                           <span
                             className={`
                               inline-flex
                               items-center
                               gap-1.5
+                              rounded-full
                               px-3
                               py-1.5
-                              rounded-full
                               text-xs
                               font-semibold
                               ${
@@ -943,8 +1098,8 @@ export default function LabInChargePage() {
 
                             <span
                               className={`
-                                w-1.5
                                 h-1.5
+                                w-1.5
                                 rounded-full
                                 ${
                                   tool.status === "available"
@@ -962,7 +1117,9 @@ export default function LabInChargePage() {
 
                         </td>
 
-                        <td className="py-4 px-4">
+                        {/* ACTIONS */}
+
+                        <td className="px-4 py-4">
 
                           <div className="flex items-center justify-end gap-1">
 
@@ -970,12 +1127,12 @@ export default function LabInChargePage() {
                               variant="ghost"
                               size="sm"
                               className="
-                                text-blue-600
-                                hover:text-blue-700
-                                hover:bg-blue-50
                                 h-9
                                 w-9
                                 p-0
+                                text-blue-600
+                                hover:bg-blue-50
+                                hover:text-blue-700
                               "
                               onClick={() =>
                                 handleEdit(tool)
@@ -989,19 +1146,21 @@ export default function LabInChargePage() {
                               variant="ghost"
                               size="sm"
                               className="
-                                text-red-500
-                                hover:text-red-700
-                                hover:bg-red-50
                                 h-9
                                 w-9
                                 p-0
+                                text-red-500
+                                hover:bg-red-50
+                                hover:text-red-700
                               "
                               onClick={() =>
                                 handleDeleteItem(tool)
                               }
                               title="Delete Tool"
                             >
-                              <Trash2 className="w-4 h-4" />
+
+                              <Trash2 className="h-4 w-4" />
+
                             </Button>
 
                           </div>
@@ -1023,15 +1182,17 @@ export default function LabInChargePage() {
 
                         <div className="flex flex-col items-center">
 
-                          <div className="w-12 h-12 rounded-xl bg-gray-100 flex items-center justify-center mb-3">
-                            <Package className="w-5 h-5 text-gray-400" />
+                          <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-xl bg-gray-100">
+
+                            <Package className="h-5 w-5 text-gray-400" />
+
                           </div>
 
                           <p className="font-medium text-gray-600">
                             No tools found
                           </p>
 
-                          <p className="text-sm text-gray-400 mt-1">
+                          <p className="mt-1 text-sm text-gray-400">
                             Try changing your search or filter.
                           </p>
 
@@ -1049,17 +1210,20 @@ export default function LabInChargePage() {
 
             </div>
 
-            {/* TABLE FOOTER */}
+            {/* FOOTER */}
 
-            <div className="flex items-center justify-between mt-4 text-xs text-gray-400">
+            <div className="mt-4 flex items-center justify-between text-xs text-gray-400">
 
               <span>
                 Showing {filteredTools.length} of {tools.length} tool types
               </span>
 
               <div className="flex items-center gap-1">
-                <Boxes className="w-3.5 h-3.5" />
+
+                <Boxes className="h-3.5 w-3.5" />
+
                 Inventory Database
+
               </div>
 
             </div>
@@ -1068,15 +1232,15 @@ export default function LabInChargePage() {
 
         </Card>
 
-        {/* ==================================================== */}
-        {/* FOOTER */}
-        {/* ==================================================== */}
+        {/* ====================================================
+            FOOTER
+        ==================================================== */}
 
         <footer className="py-8">
 
           <div className="h-px bg-gradient-to-r from-transparent via-[#800000]/10 to-transparent" />
 
-          <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-5 text-xs text-gray-400">
+          <div className="flex flex-col items-center justify-between gap-3 pt-5 text-xs text-gray-400 sm:flex-row">
 
             <p>
               Laboratory Borrowing Management System
@@ -1084,7 +1248,7 @@ export default function LabInChargePage() {
 
             <div className="flex items-center gap-2">
 
-              <span className="w-1.5 h-1.5 rounded-full bg-green-500" />
+              <span className="h-1.5 w-1.5 rounded-full bg-green-500" />
 
               <span>
                 System Ready
@@ -1135,6 +1299,101 @@ export default function LabInChargePage() {
 }
 
 // ============================================================
+// LOADING SCREEN
+// ============================================================
+
+function LabLoadingScreen() {
+  return (
+    <div className="relative min-h-screen overflow-hidden bg-[#fafafa]">
+
+      {/* ======================================================
+          TECHNOLOGY GRID
+      ====================================================== */}
+
+      <div
+        className="pointer-events-none fixed inset-0 opacity-[0.025]"
+        style={{
+          backgroundImage: `
+            linear-gradient(#800000 1px, transparent 1px),
+            linear-gradient(90deg, #800000 1px, transparent 1px)
+          `,
+          backgroundSize: "36px 36px",
+        }}
+      />
+
+      {/* ======================================================
+          DECORATIONS
+      ====================================================== */}
+
+      <div className="pointer-events-none fixed inset-0 overflow-hidden">
+
+        <Settings
+          className="absolute -right-24 top-20 h-80 w-80 text-[#800000]/[0.025]"
+          strokeWidth={1}
+        />
+
+        <Settings
+          className="absolute -left-24 bottom-0 h-80 w-80 text-[#800000]/[0.025]"
+          strokeWidth={1}
+        />
+
+        <Cpu
+          className="absolute right-[10%] top-[25%] h-8 w-8 text-[#800000]/10"
+          strokeWidth={1.5}
+        />
+
+        <CircuitBoard
+          className="absolute bottom-[20%] left-[8%] h-9 w-9 text-[#800000]/10"
+          strokeWidth={1.5}
+        />
+
+        <FlaskConical
+          className="absolute left-[17%] top-[30%] h-8 w-8 text-[#800000]/[0.05]"
+          strokeWidth={1.5}
+        />
+
+        <Wrench
+          className="absolute bottom-[30%] right-[15%] h-8 w-8 text-[#800000]/[0.05]"
+          strokeWidth={1.5}
+        />
+
+      </div>
+
+      {/* ======================================================
+          LOADING
+      ====================================================== */}
+
+      <div className="relative z-10 flex min-h-screen items-center justify-center px-5">
+
+        <div className="flex flex-col items-center gap-4">
+
+          <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-[#800000] shadow-lg">
+
+            <Spinner className="h-7 w-7 border-2 border-[#FFD700]/30 border-t-[#FFD700]" />
+
+          </div>
+
+          <div className="text-center">
+
+            <p className="font-semibold text-[#800000]">
+              Loading laboratory dashboard...
+            </p>
+
+            <p className="mt-1 text-xs text-gray-400">
+              Preparing inventory and request data...
+            </p>
+
+          </div>
+
+        </div>
+
+      </div>
+
+    </div>
+  )
+}
+
+// ============================================================
 // DASHBOARD STAT
 // ============================================================
 
@@ -1158,18 +1417,21 @@ function DashboardStat({
       iconColor: "text-[#800000]",
       value: "text-[#800000]",
     },
+
     green: {
       border: "border-green-200",
       iconBg: "bg-green-50",
       iconColor: "text-green-600",
       value: "text-green-600",
     },
+
     gold: {
       border: "border-[#FFD700]/40",
       iconBg: "bg-[#FFD700]/10",
       iconColor: "text-[#b88600]",
       value: "text-[#b88600]",
     },
+
     red: {
       border: "border-red-200",
       iconBg: "bg-red-50",
@@ -1183,15 +1445,16 @@ function DashboardStat({
   return (
     <Card
       className={`
-        bg-white
-        border
-        ${style.border}
         rounded-xl
+        border
+        bg-white
+        ${style.border}
         shadow-sm
-        hover:shadow-md
         transition-shadow
+        hover:shadow-md
       `}
     >
+
       <CardContent className="p-5">
 
         <div className="flex items-center justify-between">
@@ -1202,14 +1465,14 @@ function DashboardStat({
 
           <div
             className={`
-              w-9
+              flex
               h-9
+              w-9
+              items-center
+              justify-center
               rounded-lg
               ${style.iconBg}
               ${style.iconColor}
-              flex
-              items-center
-              justify-center
             `}
           >
             {icon}
@@ -1217,26 +1480,27 @@ function DashboardStat({
 
         </div>
 
-        <div className="flex items-end gap-2 mt-4">
+        <div className="mt-4 flex items-end gap-2">
 
           <span
             className={`
               text-2xl
-              sm:text-3xl
               font-bold
+              sm:text-3xl
               ${style.value}
             `}
           >
             {value}
           </span>
 
-          <span className="text-xs text-gray-400 mb-1">
+          <span className="mb-1 text-xs text-gray-400">
             {label}
           </span>
 
         </div>
 
       </CardContent>
+
     </Card>
   )
 }
@@ -1259,7 +1523,7 @@ function SmallStat({
   iconClass: string
 }) {
   return (
-    <Card className="bg-white border border-gray-100 rounded-xl shadow-sm">
+    <Card className="rounded-xl border border-gray-100 bg-white shadow-sm">
 
       <CardContent className="p-4">
 
@@ -1271,12 +1535,12 @@ function SmallStat({
 
           <div
             className={`
-              w-8
-              h-8
-              rounded-lg
               flex
+              h-8
+              w-8
               items-center
               justify-center
+              rounded-lg
               ${iconClass}
             `}
           >
@@ -1285,13 +1549,13 @@ function SmallStat({
 
         </div>
 
-        <div className="flex items-end gap-2 mt-3">
+        <div className="mt-3 flex items-end gap-2">
 
           <span className="text-2xl font-bold text-gray-800">
             {value}
           </span>
 
-          <span className="text-xs text-gray-400 mb-1">
+          <span className="mb-1 text-xs text-gray-400">
             {label}
           </span>
 
@@ -1324,6 +1588,7 @@ function TodayCard({
       text: "text-cyan-600",
       border: "border-cyan-100",
     },
+
     emerald: {
       bg: "bg-emerald-50",
       text: "text-emerald-600",
@@ -1336,10 +1601,10 @@ function TodayCard({
   return (
     <Card
       className={`
-        bg-white
-        border
-        ${style.border}
         rounded-xl
+        border
+        bg-white
+        ${style.border}
         shadow-sm
       `}
     >
@@ -1350,14 +1615,14 @@ function TodayCard({
 
           <div
             className={`
-              w-10
+              flex
               h-10
+              w-10
+              items-center
+              justify-center
               rounded-lg
               ${style.bg}
               ${style.text}
-              flex
-              items-center
-              justify-center
             `}
           >
             {icon}

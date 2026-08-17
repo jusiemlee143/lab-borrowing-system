@@ -118,7 +118,7 @@ export async function POST(req) {
       "http://localhost:3000";
 
     const verificationUrl =
-      `${appUrl}/api/auth/verify-email?token=${encodeURIComponent(
+      `${appUrl}/api/auth/student-verify-email?token=${encodeURIComponent(
         verificationToken
       )}`;
 

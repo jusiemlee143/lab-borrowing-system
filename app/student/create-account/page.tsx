@@ -58,7 +58,7 @@ export default function CreateAccountPage() {
       setLoading(true)
 
       // Send information to our API
-      const response = await fetch("/api/auth/register", {
+      const response = await fetch("/api/auth/student-register", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

@@ -112,7 +112,7 @@ const handleLogin = async (
     // SEND LOGIN INFORMATION TO BACKEND
     // ==========================================================
 
-    const response = await fetch("/api/auth/login", {
+    const response = await fetch("/api/auth/student-login", {
       method: "POST",
 
       headers: {

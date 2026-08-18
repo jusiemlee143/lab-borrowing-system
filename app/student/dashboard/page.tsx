@@ -70,6 +70,7 @@ export default function StudentPage() {
   // ============================================================
 
   const [checkingSession, setCheckingSession] = useState(true)
+  const [authError, setAuthError] = useState(false)
 
   // ============================================================
   // CHECK STUDENT SESSION
@@ -78,24 +79,67 @@ export default function StudentPage() {
   useEffect(() => {
     const session = sessionStorage.getItem("studentSession")
 
+    // ==========================================================
+    // NO SESSION
+    // ==========================================================
+
     if (!session) {
-      router.replace("/student/login")
-      return
+      setAuthError(true)
+      setCheckingSession(false)
+
+      const timer = setTimeout(() => {
+        router.replace("/student/login")
+      }, 2000)
+
+      return () => clearTimeout(timer)
     }
+
+    // ==========================================================
+    // CHECK SESSION
+    // ==========================================================
 
     try {
       const parsed = JSON.parse(session)
 
+      // ========================================================
+      // INVALID SESSION
+      // ========================================================
+
       if (!parsed?.loggedIn) {
         sessionStorage.removeItem("studentSession")
-        router.replace("/student/login")
-        return
+
+        setAuthError(true)
+        setCheckingSession(false)
+
+        const timer = setTimeout(() => {
+          router.replace("/student/login")
+        }, 2000)
+
+        return () => clearTimeout(timer)
       }
 
+      // ========================================================
+      // VALID SESSION
+      // ========================================================
+
       setCheckingSession(false)
+      setAuthError(false)
+
     } catch {
+      // ========================================================
+      // CORRUPTED SESSION
+      // ========================================================
+
       sessionStorage.removeItem("studentSession")
-      router.replace("/student/login")
+
+      setAuthError(true)
+      setCheckingSession(false)
+
+      const timer = setTimeout(() => {
+        router.replace("/student/login")
+      }, 2000)
+
+      return () => clearTimeout(timer)
     }
   }, [router])
 
@@ -104,10 +148,10 @@ export default function StudentPage() {
   // ============================================================
 
   useEffect(() => {
-    if (!checkingSession) {
+    if (!checkingSession && !authError) {
       fetchTools()
     }
-  }, [checkingSession])
+  }, [checkingSession, authError])
 
   const fetchTools = async () => {
     try {
@@ -167,11 +211,23 @@ export default function StudentPage() {
   })
 
   // ============================================================
+  // UNAUTHORIZED ACCESS SCREEN
+  // ============================================================
+
+  if (authError) {
+    return <StudentUnauthorizedScreen />
+  }
+
+  // ============================================================
   // SESSION CHECKING SCREEN
   // ============================================================
 
   if (checkingSession) {
-    return <StudentLoadingScreen message="Checking student session..." />
+    return (
+      <StudentLoadingScreen
+        message="Checking student session..."
+      />
+    )
   }
 
   // ============================================================
@@ -1074,6 +1130,157 @@ export default function StudentPage() {
         </footer>
 
       </main>
+
+    </div>
+  )
+}
+
+// ============================================================
+// UNAUTHORIZED ACCESS SCREEN
+// ============================================================
+
+function StudentUnauthorizedScreen() {
+  return (
+    <div className="relative min-h-screen overflow-hidden bg-[#fafafa]">
+
+      {/* ======================================================
+          TECHNOLOGY BACKGROUND
+      ====================================================== */}
+
+      <div
+        className="pointer-events-none fixed inset-0 opacity-[0.025]"
+        style={{
+          backgroundImage: `
+            linear-gradient(#800000 1px, transparent 1px),
+            linear-gradient(90deg, #800000 1px, transparent 1px)
+          `,
+          backgroundSize: "36px 36px",
+        }}
+      />
+
+      {/* ======================================================
+          DECORATIONS
+      ====================================================== */}
+
+      <div className="pointer-events-none fixed inset-0 overflow-hidden">
+
+        <Settings
+          className="absolute -right-24 top-20 h-80 w-80 text-[#800000]/[0.025]"
+          strokeWidth={1}
+        />
+
+        <Settings
+          className="absolute -left-24 bottom-0 h-80 w-80 text-[#800000]/[0.025]"
+          strokeWidth={1}
+        />
+
+        <Cpu
+          className="absolute right-[10%] top-[25%] h-8 w-8 text-[#800000]/10"
+          strokeWidth={1.5}
+        />
+
+        <CircuitBoard
+          className="absolute bottom-[20%] left-[8%] h-9 w-9 text-[#800000]/10"
+          strokeWidth={1.5}
+        />
+
+      </div>
+
+      {/* ======================================================
+          ERROR NOTIFICATION
+      ====================================================== */}
+
+      <div
+        className="
+          fixed
+          right-0
+          top-4
+          z-[9999]
+          w-[calc(100%-16px)]
+          max-w-[443px]
+          rounded-r-xl
+          border
+          border-red-200
+          bg-red-50
+          px-5
+          py-5
+          shadow-lg
+          sm:top-5
+        "
+      >
+
+        <div className="flex items-start gap-3">
+
+          {/* ERROR ICON */}
+
+          <div
+            className="
+              mt-0.5
+              flex
+              h-5
+              w-5
+              shrink-0
+              items-center
+              justify-center
+              rounded-full
+              bg-red-600
+              text-white
+            "
+          >
+
+            <span className="text-xs font-bold">
+              !
+            </span>
+
+          </div>
+
+          {/* MESSAGE */}
+
+          <p className="text-sm font-semibold leading-6 text-red-600">
+            You must login first before accessing the Student Dashboard.
+          </p>
+
+        </div>
+
+      </div>
+
+      {/* ======================================================
+          CENTER MESSAGE
+      ====================================================== */}
+
+      <div className="relative z-10 flex min-h-screen items-center justify-center px-5">
+
+        <div className="text-center">
+
+          <div
+            className="
+              mx-auto
+              flex
+              h-14
+              w-14
+              items-center
+              justify-center
+              rounded-2xl
+              bg-[#800000]
+              shadow-lg
+            "
+          >
+
+            <LogOut className="h-7 w-7 text-[#FFD700]" />
+
+          </div>
+
+          <p className="mt-4 font-semibold text-[#800000]">
+            Redirecting to Student Login...
+          </p>
+
+          <p className="mt-1 text-xs text-gray-400">
+            Please login before accessing the dashboard.
+          </p>
+
+        </div>
+
+      </div>
 
     </div>
   )

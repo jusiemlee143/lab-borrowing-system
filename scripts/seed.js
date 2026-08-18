@@ -23,11 +23,11 @@ const connectDBAndSeed = async () => {
     await User.deleteMany();
 
     await User.create({
-      name: "Admin User",
-      email: "admin@gmail.com",
-      password: "admin123",
-      role: "admin",
-    });
+    fullName: "Admin User",
+    email: "lbs.admin2026@gmail.com",
+    password: "admin123",
+    role: "admin",
+  });
 
     
 

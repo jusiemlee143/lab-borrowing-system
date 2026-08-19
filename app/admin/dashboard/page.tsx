@@ -1,6 +1,6 @@
 "use client"
 
-import { useCallback, useEffect, useState } from "react"
+import { useCallback, useEffect, useMemo, useState } from "react"
 import Image from "next/image"
 import { useRouter } from "next/navigation"
 import {
@@ -9,17 +9,24 @@ import {
   BriefcaseBusiness,
   CheckCircle2,
   ClipboardList,
+  Clock3,
   Copy,
+  Eye,
   GraduationCap,
   LayoutDashboard,
+  Loader2,
   LogOut,
   Mail,
+  PackageCheck,
   Plus,
+  RefreshCw,
+  Search,
   ShieldCheck,
   Trash2,
   UserPlus,
   Users,
   X,
+  XCircle,
 } from "lucide-react"
 
 import { Input } from "@/components/ui/input"
@@ -42,6 +49,7 @@ interface LIC {
   email: string
   department: string
   employeeId: string
+  contactNumber?: string
 }
 
 interface Teacher {
@@ -50,9 +58,237 @@ interface Teacher {
   email: string
 }
 
+interface Tool {
+  _id: string
+  name: string
+  quantity: number
+  status: string
+  createdAt?: string
+  updatedAt?: string
+}
+
+/*
+ * The Request model has changed/expanded during development,
+ * so the admin UI intentionally supports the fields that have
+ * appeared in your borrowing system.
+ */
+interface BorrowingRequest {
+  _id: string
+  status?: string
+  createdAt?: string
+  updatedAt?: string
+
+  studentName?: string
+  studentId?: string
+  section?: string
+  groupNumber?: string | number
+
+  instructor?: string
+  instructorName?: string
+  instructorEmail?: string
+
+  activityTitle?: string
+  purpose?: string
+  laboratory?: string
+
+  requestedDate?: string
+  borrowDate?: string
+  returnDate?: string
+  expectedReturnDate?: string
+
+  items?: unknown[]
+  cart?: unknown[]
+  tools?: unknown[]
+  cartItems?: unknown[]
+
+  rejectReason?: string
+  reason?: string
+
+  [key: string]: unknown
+}
+
 type DeleteTarget = {
   id: string
   type: "lic" | "teacher"
+}
+
+type AdminSection =
+  | "dashboard"
+  | "borrowing"
+  | "equipment"
+  | "users"
+  | "instructors"
+
+type RequestFilter =
+  | "all"
+  | "pending"
+  | "approved"
+  | "rejected"
+  | "released"
+  | "returned"
+
+/* ============================================================
+   HELPERS
+============================================================ */
+
+function getStringValue(
+  value: unknown,
+  fallback = ""
+): string {
+  if (typeof value === "string") return value
+  if (typeof value === "number") return String(value)
+  return fallback
+}
+
+function formatDate(value?: string) {
+  if (!value) return "N/A"
+
+  const date = new Date(value)
+
+  if (Number.isNaN(date.getTime())) {
+    return "N/A"
+  }
+
+  return date.toLocaleDateString("en-PH", {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+  })
+}
+
+function formatDateTime(value?: string) {
+  if (!value) return "N/A"
+
+  const date = new Date(value)
+
+  if (Number.isNaN(date.getTime())) {
+    return "N/A"
+  }
+
+  return date.toLocaleString("en-PH", {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  })
+}
+
+function normalizeStatus(status?: string) {
+  return getStringValue(status, "pending")
+    .trim()
+    .toLowerCase()
+}
+
+function getStatusLabel(status?: string) {
+  const normalized = normalizeStatus(status)
+
+  switch (normalized) {
+    case "approved":
+      return "Approved"
+    case "rejected":
+      return "Rejected"
+    case "released":
+      return "Released"
+    case "returned":
+      return "Returned"
+    case "pending":
+      return "Pending"
+    default:
+      return status || "Pending"
+  }
+}
+
+function getStatusClasses(status?: string) {
+  const normalized = normalizeStatus(status)
+
+  switch (normalized) {
+    case "approved":
+      return "bg-blue-50 text-blue-700 border-blue-100"
+
+    case "released":
+      return "bg-purple-50 text-purple-700 border-purple-100"
+
+    case "returned":
+      return "bg-green-50 text-green-700 border-green-100"
+
+    case "rejected":
+      return "bg-red-50 text-red-700 border-red-100"
+
+    case "pending":
+    default:
+      return "bg-amber-50 text-amber-700 border-amber-100"
+  }
+}
+
+function getRequestStudent(request: BorrowingRequest) {
+  return (
+    getStringValue(request.studentName) ||
+    getStringValue(request.studentId) ||
+    "Unknown Student"
+  )
+}
+
+function getRequestInstructor(request: BorrowingRequest) {
+  return (
+    getStringValue(request.instructorName) ||
+    getStringValue(request.instructor) ||
+    "N/A"
+  )
+}
+
+function getRequestItems(request: BorrowingRequest): unknown[] {
+  const possibleArrays = [
+    request.items,
+    request.cart,
+    request.tools,
+    request.cartItems,
+  ]
+
+  for (const value of possibleArrays) {
+    if (Array.isArray(value)) {
+      return value
+    }
+  }
+
+  return []
+}
+
+function getItemName(item: unknown) {
+  if (typeof item === "string") return item
+
+  if (
+    typeof item === "object" &&
+    item !== null
+  ) {
+    const obj = item as Record<string, unknown>
+
+    return (
+      getStringValue(obj.name) ||
+      getStringValue(obj.toolName) ||
+      getStringValue(obj.title) ||
+      "Equipment"
+    )
+  }
+
+  return "Equipment"
+}
+
+function getItemQuantity(item: unknown) {
+  if (
+    typeof item === "object" &&
+    item !== null
+  ) {
+    const obj = item as Record<string, unknown>
+
+    return (
+      getStringValue(obj.quantity) ||
+      getStringValue(obj.qty) ||
+      "1"
+    )
+  }
+
+  return "1"
 }
 
 /* ============================================================
@@ -63,36 +299,116 @@ export default function AdminDashboard() {
   const router = useRouter()
 
   /* ==========================================================
-     STATE
+     NAVIGATION
   ========================================================== */
 
-  const [step, setStep] = useState<1 | 2>(1)
+  const [activeSection, setActiveSection] =
+    useState<AdminSection>("dashboard")
+
+  /* ==========================================================
+     ACCOUNT DATA
+  ========================================================== */
 
   const [labAccounts, setLabAccounts] = useState<LIC[]>([])
   const [teachers, setTeachers] = useState<Teacher[]>([])
 
   const [isLoadingLICs, setIsLoadingLICs] = useState(true)
-  const [isLoadingTeachers, setIsLoadingTeachers] = useState(true)
+  const [isLoadingTeachers, setIsLoadingTeachers] =
+    useState(true)
+
+  /* ==========================================================
+     EQUIPMENT DATA
+  ========================================================== */
+
+  const [tools, setTools] = useState<Tool[]>([])
+  const [isLoadingTools, setIsLoadingTools] =
+    useState(true)
+
+  const [toolSearch, setToolSearch] = useState("")
+
+  /* ==========================================================
+     REQUEST DATA
+  ========================================================== */
+
+  const [requests, setRequests] = useState<
+    BorrowingRequest[]
+  >([])
+
+  const [isLoadingRequests, setIsLoadingRequests] =
+    useState(true)
+
+  const [requestSearch, setRequestSearch] =
+    useState("")
+
+  const [requestFilter, setRequestFilter] =
+    useState<RequestFilter>("all")
+
+  const [selectedRequest, setSelectedRequest] =
+    useState<BorrowingRequest | null>(null)
+
+  /* ==========================================================
+     LIC FORM
+  ========================================================== */
+
+  const [step, setStep] = useState<1 | 2>(1)
 
   const [fullName, setFullName] = useState("")
   const [employeeId, setEmployeeId] = useState("")
   const [department, setDepartment] = useState("")
-  const [contactNumber, setContactNumber] = useState("")
+  const [contactNumber, setContactNumber] =
+    useState("")
+
   const [email, setEmail] = useState("")
-  const [tempPassword, setTempPassword] = useState("")
+  const [tempPassword, setTempPassword] =
+    useState("")
 
-  const [instructorName, setInstructorName] = useState("")
-  const [instructorEmail, setInstructorEmail] = useState("")
+  const [isCreatingLIC, setIsCreatingLIC] =
+    useState(false)
 
-  const [showModal, setShowModal] = useState(false)
+  /* ==========================================================
+     INSTRUCTOR FORM
+  ========================================================== */
+
+  const [instructorName, setInstructorName] =
+    useState("")
+
+  const [instructorEmail, setInstructorEmail] =
+    useState("")
+
+  const [isAddingTeacher, setIsAddingTeacher] =
+    useState(false)
+
+  /* ==========================================================
+     DELETE
+  ========================================================== */
 
   const [deleteTarget, setDeleteTarget] =
     useState<DeleteTarget | null>(null)
 
-  const [isCreatingLIC, setIsCreatingLIC] = useState(false)
-  const [isAddingTeacher, setIsAddingTeacher] = useState(false)
-  const [isDeleting, setIsDeleting] = useState(false)
-  const [isLoggingOut, setIsLoggingOut] = useState(false)
+  const [showDeleteModal, setShowDeleteModal] =
+    useState(false)
+
+  const [isDeleting, setIsDeleting] =
+    useState(false)
+
+  /* ==========================================================
+     LOGOUT
+  ========================================================== */
+
+  const [isLoggingOut, setIsLoggingOut] =
+    useState(false)
+
+  /* ==========================================================
+     SECTION TITLE
+  ========================================================== */
+
+  const sectionTitle = {
+    dashboard: "Admin Dashboard",
+    borrowing: "Borrowing Records",
+    equipment: "Equipment",
+    users: "Users",
+    instructors: "Instructors",
+  }[activeSection]
 
   /* ==========================================================
      FETCH LIC ACCOUNTS
@@ -111,13 +427,19 @@ export default function AdminDashboard() {
 
       if (!res.ok) {
         throw new Error(
-          data?.message || "Failed to load LIC accounts."
+          data?.message ||
+            "Failed to load LIC accounts."
         )
       }
 
-      setLabAccounts(Array.isArray(data) ? data : [])
+      setLabAccounts(
+        Array.isArray(data) ? data : []
+      )
     } catch (error) {
-      console.error("Failed to fetch LIC accounts:", error)
+      console.error(
+        "Failed to fetch LIC accounts:",
+        error
+      )
 
       toast.error(
         error instanceof Error
@@ -137,22 +459,31 @@ export default function AdminDashboard() {
     setIsLoadingTeachers(true)
 
     try {
-      const res = await fetch("/api/admin/teachers", {
-        method: "GET",
-        cache: "no-store",
-      })
+      const res = await fetch(
+        "/api/admin/teachers",
+        {
+          method: "GET",
+          cache: "no-store",
+        }
+      )
 
       const data = await res.json().catch(() => null)
 
       if (!res.ok) {
         throw new Error(
-          data?.message || "Failed to load instructors."
+          data?.message ||
+            "Failed to load instructors."
         )
       }
 
-      setTeachers(Array.isArray(data) ? data : [])
+      setTeachers(
+        Array.isArray(data) ? data : []
+      )
     } catch (error) {
-      console.error("Failed to fetch teachers:", error)
+      console.error(
+        "Failed to fetch teachers:",
+        error
+      )
 
       toast.error(
         error instanceof Error
@@ -165,12 +496,125 @@ export default function AdminDashboard() {
   }, [])
 
   /* ==========================================================
+     FETCH TOOLS
+  ========================================================== */
+
+  const fetchTools = useCallback(async () => {
+    setIsLoadingTools(true)
+
+    try {
+      const res = await fetch(
+        "/api/lab-in-charge/tools",
+        {
+          method: "GET",
+          cache: "no-store",
+        }
+      )
+
+      const data = await res.json().catch(() => null)
+
+      if (!res.ok) {
+        throw new Error(
+          data?.message ||
+            "Failed to load equipment."
+        )
+      }
+
+      setTools(
+        Array.isArray(data) ? data : []
+      )
+    } catch (error) {
+      console.error(
+        "Failed to fetch tools:",
+        error
+      )
+
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Failed to load equipment."
+      )
+    } finally {
+      setIsLoadingTools(false)
+    }
+  }, [])
+
+  /* ==========================================================
+     FETCH REQUESTS
+  ========================================================== */
+
+  const fetchRequests = useCallback(async () => {
+    setIsLoadingRequests(true)
+
+    try {
+      const res = await fetch(
+        "/api/lab-in-charge/requests",
+        {
+          method: "GET",
+          cache: "no-store",
+        }
+      )
+
+      const data = await res.json().catch(() => null)
+
+      if (!res.ok) {
+        throw new Error(
+          data?.message ||
+            "Failed to load borrowing records."
+        )
+      }
+
+      setRequests(
+        Array.isArray(data) ? data : []
+      )
+    } catch (error) {
+      console.error(
+        "Failed to fetch requests:",
+        error
+      )
+
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Failed to load borrowing records."
+      )
+    } finally {
+      setIsLoadingRequests(false)
+    }
+  }, [])
+
+  /* ==========================================================
      INITIAL LOAD
   ========================================================== */
 
   useEffect(() => {
-    void Promise.all([fetchLICs(), fetchTeachers()])
-  }, [fetchLICs, fetchTeachers])
+    void Promise.all([
+      fetchLICs(),
+      fetchTeachers(),
+      fetchTools(),
+      fetchRequests(),
+    ])
+  }, [
+    fetchLICs,
+    fetchTeachers,
+    fetchTools,
+    fetchRequests,
+  ])
+
+  /* ==========================================================
+     REFRESH EVERYTHING
+  ========================================================== */
+
+  const refreshAll = async () => {
+    await Promise.all([
+      fetchLICs(),
+      fetchTeachers(),
+      fetchTools(),
+      fetchRequests(),
+    ])
+
+    toast.success("Dashboard data refreshed.")
+  }
 
   /* ==========================================================
      PASSWORD GENERATOR
@@ -184,7 +628,9 @@ export default function AdminDashboard() {
 
     for (let i = 0; i < 10; i++) {
       password += characters.charAt(
-        Math.floor(Math.random() * characters.length)
+        Math.floor(
+          Math.random() * characters.length
+        )
       )
     }
 
@@ -192,11 +638,13 @@ export default function AdminDashboard() {
   }
 
   /* ==========================================================
-     VALIDATION
+     EMAIL VALIDATION
   ========================================================== */
 
   const isValidEmail = (value: string) => {
-    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(
+      value
+    )
   }
 
   /* ==========================================================
@@ -210,12 +658,18 @@ export default function AdminDashboard() {
       !department.trim() ||
       !contactNumber.trim()
     ) {
-      toast.error("Please complete all required fields.")
+      toast.error(
+        "Please complete all required fields."
+      )
+
       return
     }
 
     if (contactNumber.length !== 11) {
-      toast.error("Contact number must contain 11 digits.")
+      toast.error(
+        "Contact number must contain 11 digits."
+      )
+
       return
     }
 
@@ -223,6 +677,7 @@ export default function AdminDashboard() {
       toast.error(
         "Please enter a valid Philippine mobile number starting with 09."
       )
+
       return
     }
 
@@ -241,12 +696,18 @@ export default function AdminDashboard() {
     }
 
     if (!isValidEmail(email.trim())) {
-      toast.error("Please enter a valid email address.")
+      toast.error(
+        "Please enter a valid email address."
+      )
+
       return
     }
 
     if (!tempPassword) {
-      toast.error("Temporary password is missing.")
+      toast.error(
+        "Temporary password is missing."
+      )
+
       return
     }
 
@@ -255,31 +716,43 @@ export default function AdminDashboard() {
     setIsCreatingLIC(true)
 
     try {
-      const res = await fetch("/api/admin/create-lic", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          fullName: fullName.trim(),
-          employeeId: employeeId.trim(),
-          department: department.trim(),
-          contactNumber: contactNumber.trim(),
-          email: email.trim().toLowerCase(),
-          tempPassword,
-        }),
-      })
+      const res = await fetch(
+        "/api/admin/create-lic",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            fullName: fullName.trim(),
+            employeeId: employeeId.trim(),
+            department: department.trim(),
+            contactNumber:
+              contactNumber.trim(),
+            email: email
+              .trim()
+              .toLowerCase(),
+            tempPassword,
+          }),
+        }
+      )
 
-      const data = await res.json().catch(() => null)
+      const data = await res.json().catch(
+        () => null
+      )
 
       if (!res.ok) {
         toast.error(
-          data?.message || "Failed to create LIC account."
+          data?.message ||
+            "Failed to create LIC account."
         )
+
         return
       }
 
-      toast.success("LIC account created successfully.")
+      toast.success(
+        "LIC account created successfully."
+      )
 
       await fetchLICs()
 
@@ -291,7 +764,10 @@ export default function AdminDashboard() {
       setTempPassword("")
       setStep(1)
     } catch (error) {
-      console.error("Create LIC error:", error)
+      console.error(
+        "Create LIC error:",
+        error
+      )
 
       toast.error(
         "Something went wrong while creating the LIC account."
@@ -307,17 +783,28 @@ export default function AdminDashboard() {
 
   const handleAddTeacher = async () => {
     if (!instructorName.trim()) {
-      toast.error("Instructor name is required.")
+      toast.error(
+        "Instructor name is required."
+      )
+
       return
     }
 
     if (!instructorEmail.trim()) {
-      toast.error("Instructor email is required.")
+      toast.error(
+        "Instructor email is required."
+      )
+
       return
     }
 
-    if (!isValidEmail(instructorEmail.trim())) {
-      toast.error("Please enter a valid instructor email.")
+    if (
+      !isValidEmail(instructorEmail.trim())
+    ) {
+      toast.error(
+        "Please enter a valid instructor email."
+      )
+
       return
     }
 
@@ -326,34 +813,48 @@ export default function AdminDashboard() {
     setIsAddingTeacher(true)
 
     try {
-      const res = await fetch("/api/admin/create-teacher", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          name: instructorName.trim(),
-          email: instructorEmail.trim().toLowerCase(),
-        }),
-      })
+      const res = await fetch(
+        "/api/admin/create-teacher",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            name: instructorName.trim(),
+            email: instructorEmail
+              .trim()
+              .toLowerCase(),
+          }),
+        }
+      )
 
-      const data = await res.json().catch(() => null)
+      const data = await res.json().catch(
+        () => null
+      )
 
       if (!res.ok) {
         toast.error(
-          data?.message || "Failed to add instructor."
+          data?.message ||
+            "Failed to add instructor."
         )
+
         return
       }
 
-      toast.success("Instructor added successfully.")
+      toast.success(
+        "Instructor added successfully."
+      )
 
       setInstructorName("")
       setInstructorEmail("")
 
       await fetchTeachers()
     } catch (error) {
-      console.error("Add instructor error:", error)
+      console.error(
+        "Add instructor error:",
+        error
+      )
 
       toast.error(
         "Something went wrong while adding the instructor."
@@ -376,13 +877,13 @@ export default function AdminDashboard() {
       type,
     })
 
-    setShowModal(true)
+    setShowDeleteModal(true)
   }
 
   const closeDeleteModal = () => {
     if (isDeleting) return
 
-    setShowModal(false)
+    setShowDeleteModal(false)
     setDeleteTarget(null)
   }
 
@@ -405,12 +906,16 @@ export default function AdminDashboard() {
         method: "DELETE",
       })
 
-      const data = await res.json().catch(() => null)
+      const data = await res.json().catch(
+        () => null
+      )
 
       if (!res.ok) {
         toast.error(
-          data?.message || "Failed to delete record."
+          data?.message ||
+            "Failed to delete record."
         )
+
         return
       }
 
@@ -426,10 +931,13 @@ export default function AdminDashboard() {
         await fetchTeachers()
       }
 
-      setShowModal(false)
+      setShowDeleteModal(false)
       setDeleteTarget(null)
     } catch (error) {
-      console.error("Delete error:", error)
+      console.error(
+        "Delete error:",
+        error
+      )
 
       toast.error(
         "Something went wrong while deleting the record."
@@ -453,7 +961,10 @@ export default function AdminDashboard() {
         method: "POST",
       })
     } catch (error) {
-      console.error("Logout error:", error)
+      console.error(
+        "Logout error:",
+        error
+      )
     } finally {
       router.push("/admin")
     }
@@ -467,15 +978,194 @@ export default function AdminDashboard() {
     if (!tempPassword) return
 
     try {
-      await navigator.clipboard.writeText(tempPassword)
+      await navigator.clipboard.writeText(
+        tempPassword
+      )
 
-      toast.success("Temporary password copied.")
+      toast.success(
+        "Temporary password copied."
+      )
     } catch (error) {
-      console.error("Copy password error:", error)
+      console.error(
+        "Copy password error:",
+        error
+      )
 
-      toast.error("Unable to copy password.")
+      toast.error(
+        "Unable to copy password."
+      )
     }
   }
+
+  /* ==========================================================
+     SIDEBAR BUTTON
+  ========================================================== */
+
+  const sidebarButtonClass = (
+    section: AdminSection
+  ) => {
+    const isActive =
+      activeSection === section
+
+    return `
+      flex w-full items-center gap-3
+      rounded-xl
+      px-3 py-2.5
+      text-sm
+      transition
+      ${
+        isActive
+          ? "bg-[#800000]/[0.07] font-semibold text-[#800000]"
+          : "text-gray-500 hover:bg-gray-50 hover:text-[#800000]"
+      }
+    `
+  }
+
+  /* ==========================================================
+     STATISTICS
+  ========================================================== */
+
+  const requestStats = useMemo(() => {
+    const stats = {
+      total: requests.length,
+      pending: 0,
+      approved: 0,
+      rejected: 0,
+      released: 0,
+      returned: 0,
+    }
+
+    requests.forEach((request) => {
+      const status =
+        normalizeStatus(request.status)
+
+      if (
+        status === "pending"
+      ) {
+        stats.pending++
+      } else if (
+        status === "approved"
+      ) {
+        stats.approved++
+      } else if (
+        status === "rejected"
+      ) {
+        stats.rejected++
+      } else if (
+        status === "released"
+      ) {
+        stats.released++
+      } else if (
+        status === "returned"
+      ) {
+        stats.returned++
+      }
+    })
+
+    return stats
+  }, [requests])
+
+  const totalEquipmentQuantity =
+    useMemo(
+      () =>
+        tools.reduce(
+          (total, tool) =>
+            total +
+            Number(tool.quantity || 0),
+          0
+        ),
+      [tools]
+    )
+
+  const lowStockTools = useMemo(
+    () =>
+      tools.filter(
+        (tool) =>
+          Number(tool.quantity) > 0 &&
+          Number(tool.quantity) < 5
+      ),
+    [tools]
+  )
+
+  const unavailableTools = useMemo(
+    () =>
+      tools.filter(
+        (tool) =>
+          Number(tool.quantity) === 0
+      ),
+    [tools]
+  )
+
+  /* ==========================================================
+     FILTERED TOOLS
+  ========================================================== */
+
+  const filteredTools = useMemo(() => {
+    const query =
+      toolSearch.trim().toLowerCase()
+
+    if (!query) return tools
+
+    return tools.filter((tool) =>
+      [
+        tool.name,
+        tool.status,
+        String(tool.quantity),
+      ]
+        .join(" ")
+        .toLowerCase()
+        .includes(query)
+    )
+  }, [tools, toolSearch])
+
+  /* ==========================================================
+     FILTERED REQUESTS
+  ========================================================== */
+
+  const filteredRequests = useMemo(() => {
+    const query =
+      requestSearch.trim().toLowerCase()
+
+    return requests.filter((request) => {
+      const status =
+        normalizeStatus(request.status)
+
+      if (
+        requestFilter !== "all" &&
+        status !== requestFilter
+      ) {
+        return false
+      }
+
+      if (!query) return true
+
+      const searchableText = [
+        request._id,
+        request.studentName,
+        request.studentId,
+        request.section,
+        request.groupNumber,
+        request.activityTitle,
+        request.purpose,
+        request.instructorName,
+        request.instructor,
+        request.status,
+        request.rejectReason,
+        request.reason,
+      ]
+        .map((value) =>
+          getStringValue(value)
+        )
+        .join(" ")
+        .toLowerCase()
+
+      return searchableText.includes(query)
+    })
+  }, [
+    requests,
+    requestSearch,
+    requestFilter,
+  ])
 
   /* ==========================================================
      RENDER
@@ -521,7 +1211,7 @@ export default function AdminDashboard() {
 
         {/* NAVIGATION */}
 
-        <div className="flex-1 px-4 py-6">
+        <div className="flex-1 overflow-y-auto px-4 py-6">
           <p className="mb-3 px-3 text-[10px] font-bold uppercase tracking-[0.18em] text-gray-400">
             Main Menu
           </p>
@@ -529,14 +1219,14 @@ export default function AdminDashboard() {
           <div className="space-y-1">
             <button
               type="button"
-              className="
-                flex w-full items-center gap-3
-                rounded-xl
-                bg-[#800000]/[0.07]
-                px-3 py-2.5
-                text-sm font-semibold
-                text-[#800000]
-              "
+              onClick={() =>
+                setActiveSection(
+                  "dashboard"
+                )
+              }
+              className={sidebarButtonClass(
+                "dashboard"
+              )}
             >
               <LayoutDashboard className="h-4 w-4" />
               Dashboard
@@ -544,16 +1234,14 @@ export default function AdminDashboard() {
 
             <button
               type="button"
-              className="
-                flex w-full items-center gap-3
-                rounded-xl
-                px-3 py-2.5
-                text-sm
-                text-gray-500
-                transition
-                hover:bg-gray-50
-                hover:text-[#800000]
-              "
+              onClick={() =>
+                setActiveSection(
+                  "borrowing"
+                )
+              }
+              className={sidebarButtonClass(
+                "borrowing"
+              )}
             >
               <ClipboardList className="h-4 w-4" />
               Borrowing Records
@@ -561,16 +1249,14 @@ export default function AdminDashboard() {
 
             <button
               type="button"
-              className="
-                flex w-full items-center gap-3
-                rounded-xl
-                px-3 py-2.5
-                text-sm
-                text-gray-500
-                transition
-                hover:bg-gray-50
-                hover:text-[#800000]
-              "
+              onClick={() =>
+                setActiveSection(
+                  "equipment"
+                )
+              }
+              className={sidebarButtonClass(
+                "equipment"
+              )}
             >
               <BriefcaseBusiness className="h-4 w-4" />
               Equipment
@@ -584,16 +1270,12 @@ export default function AdminDashboard() {
           <div className="space-y-1">
             <button
               type="button"
-              className="
-                flex w-full items-center gap-3
-                rounded-xl
-                px-3 py-2.5
-                text-sm
-                text-gray-500
-                transition
-                hover:bg-gray-50
-                hover:text-[#800000]
-              "
+              onClick={() =>
+                setActiveSection("users")
+              }
+              className={sidebarButtonClass(
+                "users"
+              )}
             >
               <Users className="h-4 w-4" />
               Users
@@ -601,16 +1283,14 @@ export default function AdminDashboard() {
 
             <button
               type="button"
-              className="
-                flex w-full items-center gap-3
-                rounded-xl
-                px-3 py-2.5
-                text-sm
-                text-gray-500
-                transition
-                hover:bg-gray-50
-                hover:text-[#800000]
-              "
+              onClick={() =>
+                setActiveSection(
+                  "instructors"
+                )
+              }
+              className={sidebarButtonClass(
+                "instructors"
+              )}
             >
               <GraduationCap className="h-4 w-4" />
               Instructors
@@ -655,13 +1335,15 @@ export default function AdminDashboard() {
           >
             <LogOut className="mr-2 h-4 w-4" />
 
-            {isLoggingOut ? "Signing Out..." : "Sign Out"}
+            {isLoggingOut
+              ? "Signing Out..."
+              : "Sign Out"}
           </Button>
         </div>
       </aside>
 
       {/* ======================================================
-          MAIN AREA
+          MAIN
       ====================================================== */}
 
       <main className="flex min-w-0 flex-1 flex-col overflow-hidden">
@@ -682,17 +1364,22 @@ export default function AdminDashboard() {
 
           <div>
             <div className="hidden items-center gap-2 text-xs text-gray-400 sm:flex">
-              <span>Administration</span>
+              <span>
+                Administration
+              </span>
 
               <span>/</span>
 
               <span className="text-[#800000]">
-                Dashboard
+                {sectionTitle.replace(
+                  "Admin Dashboard",
+                  "Dashboard"
+                )}
               </span>
             </div>
 
             <h1 className="text-xl font-bold tracking-tight text-gray-900 sm:text-2xl">
-              Admin Dashboard
+              {sectionTitle}
             </h1>
           </div>
 
@@ -704,6 +1391,23 @@ export default function AdminDashboard() {
                 System Online
               </span>
             </div>
+
+            <Button
+              type="button"
+              variant="outline"
+              size="icon"
+              onClick={refreshAll}
+              className="
+                rounded-xl
+                border-gray-200
+                text-gray-500
+                hover:border-[#800000]/20
+                hover:bg-[#800000]/5
+                hover:text-[#800000]
+              "
+            >
+              <RefreshCw className="h-4 w-4" />
+            </Button>
 
             <Button
               type="button"
@@ -726,159 +1430,987 @@ export default function AdminDashboard() {
           </div>
         </header>
 
-        {/* ====================================================
-            CONTENT
-        ==================================================== */}
+        {/* CONTENT */}
 
         <div className="flex-1 overflow-auto">
           <div className="mx-auto w-full max-w-[1500px] p-5 sm:p-7 lg:p-8">
-            {/* WELCOME */}
-
-            <div className="mb-6">
-              <div className="flex items-center gap-2">
-                <Activity className="h-4 w-4 text-[#800000]" />
-
-                <span className="text-xs font-bold uppercase tracking-[0.16em] text-[#800000]">
-                  System Overview
-                </span>
-              </div>
-
-              <h2 className="mt-1 text-2xl font-bold tracking-tight sm:text-3xl">
-                Welcome back, Administrator
-              </h2>
-
-              <p className="mt-1 text-sm text-gray-500">
-                Manage laboratory personnel and instructors
-                from one centralized workspace.
-              </p>
-            </div>
 
             {/* ==================================================
-                STATISTICS
+                DASHBOARD
             ================================================== */}
 
-            <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-              {/* LIC */}
+            {activeSection ===
+              "dashboard" && (
+              <>
+                <div className="mb-6">
+                  <div className="flex items-center gap-2">
+                    <Activity className="h-4 w-4 text-[#800000]" />
 
-              <Card className="rounded-2xl border-gray-200 shadow-sm">
-                <CardContent className="p-5">
-                  <div className="flex items-start justify-between">
-                    <div>
-                      <p className="text-xs font-medium text-gray-400">
-                        LIC Accounts
-                      </p>
-
-                      <p className="mt-1 text-3xl font-bold text-gray-900">
-                        {labAccounts.length}
-                      </p>
-
-                      <p className="mt-1 text-xs text-gray-400">
-                        Laboratory personnel
-                      </p>
-                    </div>
-
-                    <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-[#800000]/10 text-[#800000]">
-                      <ShieldCheck className="h-5 w-5" />
-                    </div>
+                    <span className="text-xs font-bold uppercase tracking-[0.16em] text-[#800000]">
+                      System Overview
+                    </span>
                   </div>
-                </CardContent>
-              </Card>
 
-              {/* INSTRUCTORS */}
+                  <h2 className="mt-1 text-2xl font-bold tracking-tight sm:text-3xl">
+                    Welcome back, Administrator
+                  </h2>
 
-              <Card className="rounded-2xl border-gray-200 shadow-sm">
-                <CardContent className="p-5">
-                  <div className="flex items-start justify-between">
-                    <div>
-                      <p className="text-xs font-medium text-gray-400">
-                        Instructors
+                  <p className="mt-1 text-sm text-gray-500">
+                    Monitor laboratory personnel,
+                    equipment, and borrowing
+                    activity from one centralized
+                    workspace.
+                  </p>
+                </div>
+
+                {/* TOP STATS */}
+
+                <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+                  {/* LIC */}
+
+                  <Card className="rounded-2xl border-gray-200 shadow-sm">
+                    <CardContent className="p-5">
+                      <div className="flex items-start justify-between">
+                        <div>
+                          <p className="text-xs font-medium text-gray-400">
+                            LIC Accounts
+                          </p>
+
+                          <p className="mt-1 text-3xl font-bold">
+                            {labAccounts.length}
+                          </p>
+
+                          <p className="mt-1 text-xs text-gray-400">
+                            Laboratory personnel
+                          </p>
+                        </div>
+
+                        <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-[#800000]/10 text-[#800000]">
+                          <ShieldCheck className="h-5 w-5" />
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  {/* INSTRUCTORS */}
+
+                  <Card className="rounded-2xl border-gray-200 shadow-sm">
+                    <CardContent className="p-5">
+                      <div className="flex items-start justify-between">
+                        <div>
+                          <p className="text-xs font-medium text-gray-400">
+                            Instructors
+                          </p>
+
+                          <p className="mt-1 text-3xl font-bold">
+                            {teachers.length}
+                          </p>
+
+                          <p className="mt-1 text-xs text-gray-400">
+                            Registered instructors
+                          </p>
+                        </div>
+
+                        <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-[#FFD700]/20 text-[#800000]">
+                          <GraduationCap className="h-5 w-5" />
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  {/* EQUIPMENT */}
+
+                  <Card className="rounded-2xl border-gray-200 shadow-sm">
+                    <CardContent className="p-5">
+                      <div className="flex items-start justify-between">
+                        <div>
+                          <p className="text-xs font-medium text-gray-400">
+                            Equipment
+                          </p>
+
+                          <p className="mt-1 text-3xl font-bold">
+                            {tools.length}
+                          </p>
+
+                          <p className="mt-1 text-xs text-gray-400">
+                            {totalEquipmentQuantity} total units
+                          </p>
+                        </div>
+
+                        <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-blue-50 text-blue-600">
+                          <BriefcaseBusiness className="h-5 w-5" />
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  {/* PENDING */}
+
+                  <Card className="rounded-2xl border-gray-200 shadow-sm">
+                    <CardContent className="p-5">
+                      <div className="flex items-start justify-between">
+                        <div>
+                          <p className="text-xs font-medium text-gray-400">
+                            Pending Requests
+                          </p>
+
+                          <p className="mt-1 text-3xl font-bold">
+                            {requestStats.pending}
+                          </p>
+
+                          <p className="mt-1 text-xs text-gray-400">
+                            Awaiting LIC action
+                          </p>
+                        </div>
+
+                        <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-amber-50 text-amber-600">
+                          <Clock3 className="h-5 w-5" />
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </div>
+
+                {/* SECONDARY STATS */}
+
+                <div className="mb-6 grid grid-cols-2 gap-4 lg:grid-cols-4">
+                  <Card className="rounded-2xl border-gray-200 shadow-sm">
+                    <CardContent className="p-4">
+                      <p className="text-xs text-gray-400">
+                        Total Requests
                       </p>
 
-                      <p className="mt-1 text-3xl font-bold text-gray-900">
-                        {teachers.length}
+                      <p className="mt-1 text-2xl font-bold">
+                        {requestStats.total}
+                      </p>
+                    </CardContent>
+                  </Card>
+
+                  <Card className="rounded-2xl border-gray-200 shadow-sm">
+                    <CardContent className="p-4">
+                      <p className="text-xs text-gray-400">
+                        Active Borrowings
                       </p>
 
-                      <p className="mt-1 text-xs text-gray-400">
-                        Registered instructors
+                      <p className="mt-1 text-2xl font-bold text-purple-600">
+                        {requestStats.released}
                       </p>
-                    </div>
+                    </CardContent>
+                  </Card>
 
-                    <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-[#FFD700]/20 text-[#800000]">
-                      <GraduationCap className="h-5 w-5" />
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* TOTAL */}
-
-              <Card className="rounded-2xl border-gray-200 shadow-sm">
-                <CardContent className="p-5">
-                  <div className="flex items-start justify-between">
-                    <div>
-                      <p className="text-xs font-medium text-gray-400">
-                        Managed Users
+                  <Card className="rounded-2xl border-gray-200 shadow-sm">
+                    <CardContent className="p-4">
+                      <p className="text-xs text-gray-400">
+                        Low Stock
                       </p>
 
-                      <p className="mt-1 text-3xl font-bold text-gray-900">
-                        {labAccounts.length +
-                          teachers.length}
+                      <p className="mt-1 text-2xl font-bold text-amber-600">
+                        {lowStockTools.length}
+                      </p>
+                    </CardContent>
+                  </Card>
+
+                  <Card className="rounded-2xl border-gray-200 shadow-sm">
+                    <CardContent className="p-4">
+                      <p className="text-xs text-gray-400">
+                        Unavailable
                       </p>
 
-                      <p className="mt-1 text-xs text-gray-400">
-                        Personnel records
+                      <p className="mt-1 text-2xl font-bold text-red-600">
+                        {unavailableTools.length}
                       </p>
-                    </div>
+                    </CardContent>
+                  </Card>
+                </div>
 
-                    <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-blue-50 text-blue-600">
-                      <Users className="h-5 w-5" />
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
+                {/* MAIN DASHBOARD GRID */}
 
-              {/* STATUS */}
+                <div className="grid grid-cols-1 gap-6 xl:grid-cols-[1.2fr_0.8fr]">
+                  {/* RECENT REQUESTS */}
 
-              <Card className="rounded-2xl border-gray-200 shadow-sm">
-                <CardContent className="p-5">
-                  <div className="flex items-start justify-between">
-                    <div>
-                      <p className="text-xs font-medium text-gray-400">
-                        System Status
-                      </p>
+                  <Card className="rounded-2xl border-gray-200 shadow-sm">
+                    <CardHeader className="border-b border-gray-100">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <CardTitle className="text-base">
+                            Recent Borrowing Requests
+                          </CardTitle>
 
-                      <p className="mt-1 text-xl font-bold text-green-600">
-                        Operational
-                      </p>
+                          <p className="mt-0.5 text-xs text-gray-400">
+                            Latest activity in the borrowing system
+                          </p>
+                        </div>
 
-                      <p className="mt-1 text-xs text-gray-400">
-                        All services running
-                      </p>
-                    </div>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          onClick={() =>
+                            setActiveSection(
+                              "borrowing"
+                            )
+                          }
+                          className="text-xs text-[#800000] hover:bg-[#800000]/5"
+                        >
+                          View All
+                          <ArrowRight className="ml-1 h-3.5 w-3.5" />
+                        </Button>
+                      </div>
+                    </CardHeader>
 
-                    <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-green-50 text-green-600">
-                      <CheckCircle2 className="h-5 w-5" />
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
+                    <CardContent className="p-4">
+                      {isLoadingRequests ? (
+                        <div className="flex min-h-[300px] items-center justify-center">
+                          <Loader2 className="h-7 w-7 animate-spin text-[#800000]" />
+                        </div>
+                      ) : requests.length ===
+                        0 ? (
+                        <div className="flex min-h-[300px] flex-col items-center justify-center text-center">
+                          <ClipboardList className="mb-3 h-8 w-8 text-gray-300" />
+
+                          <p className="text-sm font-semibold text-gray-600">
+                            No borrowing records
+                          </p>
+
+                          <p className="mt-1 text-xs text-gray-400">
+                            Borrowing requests will
+                            appear here.
+                          </p>
+                        </div>
+                      ) : (
+                        <div className="space-y-2">
+                          {requests
+                            .slice(0, 6)
+                            .map(
+                              (
+                                request
+                              ) => (
+                                <div
+                                  key={
+                                    request._id
+                                  }
+                                  className="flex items-center gap-3 rounded-xl border border-gray-100 bg-gray-50/60 p-3"
+                                >
+                                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#800000]/10 text-[#800000]">
+                                    <ClipboardList className="h-4 w-4" />
+                                  </div>
+
+                                  <div className="min-w-0 flex-1">
+                                    <p className="truncate text-sm font-semibold">
+                                      {getRequestStudent(
+                                        request
+                                      )}
+                                    </p>
+
+                                    <p className="truncate text-xs text-gray-400">
+                                      {getStringValue(
+                                        request.activityTitle
+                                      ) ||
+                                        "Borrowing Request"}
+                                    </p>
+
+                                    <p className="mt-1 text-[10px] text-gray-400">
+                                      {formatDateTime(
+                                        request.createdAt
+                                      )}
+                                    </p>
+                                  </div>
+
+                                  <span
+                                    className={`shrink-0 rounded-full border px-2.5 py-1 text-[10px] font-semibold ${getStatusClasses(
+                                      request.status
+                                    )}`}
+                                  >
+                                    {getStatusLabel(
+                                      request.status
+                                    )}
+                                  </span>
+                                </div>
+                              )
+                            )}
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+
+                  {/* INVENTORY STATUS */}
+
+                  <Card className="rounded-2xl border-gray-200 shadow-sm">
+                    <CardHeader className="border-b border-gray-100">
+                      <div>
+                        <CardTitle className="text-base">
+                          Inventory Status
+                        </CardTitle>
+
+                        <p className="mt-0.5 text-xs text-gray-400">
+                          Equipment requiring attention
+                        </p>
+                      </div>
+                    </CardHeader>
+
+                    <CardContent className="p-4">
+                      {lowStockTools.length ===
+                        0 &&
+                      unavailableTools.length ===
+                        0 ? (
+                        <div className="flex min-h-[300px] flex-col items-center justify-center text-center">
+                          <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-green-50 text-green-600">
+                            <CheckCircle2 className="h-6 w-6" />
+                          </div>
+
+                          <p className="text-sm font-semibold text-gray-700">
+                            Inventory looks good
+                          </p>
+
+                          <p className="mt-1 text-xs text-gray-400">
+                            No equipment is currently
+                            low in stock or unavailable.
+                          </p>
+                        </div>
+                      ) : (
+                        <div className="space-y-2">
+                          {[
+                            ...unavailableTools,
+                            ...lowStockTools,
+                          ]
+                            .slice(0, 8)
+                            .map(
+                              (tool) => (
+                                <div
+                                  key={
+                                    tool._id
+                                  }
+                                  className="flex items-center gap-3 rounded-xl border border-gray-100 bg-gray-50/60 p-3"
+                                >
+                                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#FFD700]/20 text-[#800000]">
+                                    <BriefcaseBusiness className="h-4 w-4" />
+                                  </div>
+
+                                  <div className="min-w-0 flex-1">
+                                    <p className="truncate text-sm font-semibold">
+                                      {
+                                        tool.name
+                                      }
+                                    </p>
+
+                                    <p className="text-xs text-gray-400">
+                                      {
+                                        tool.quantity
+                                      }{" "}
+                                      unit
+                                      {tool.quantity !==
+                                      1
+                                        ? "s"
+                                        : ""}{" "}
+                                      remaining
+                                    </p>
+                                  </div>
+
+                                  <span
+                                    className={`rounded-full px-2.5 py-1 text-[10px] font-semibold ${
+                                      Number(
+                                        tool.quantity
+                                      ) ===
+                                      0
+                                        ? "bg-red-50 text-red-600"
+                                        : "bg-amber-50 text-amber-700"
+                                    }`}
+                                  >
+                                    {Number(
+                                      tool.quantity
+                                    ) ===
+                                    0
+                                      ? "Unavailable"
+                                      : "Low Stock"}
+                                  </span>
+                                </div>
+                              )
+                            )}
+
+                          <Button
+                            type="button"
+                            variant="outline"
+                            onClick={() =>
+                              setActiveSection(
+                                "equipment"
+                              )
+                            }
+                            className="mt-2 h-10 w-full rounded-xl text-xs"
+                          >
+                            View Equipment
+                            <ArrowRight className="ml-2 h-3.5 w-3.5" />
+                          </Button>
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                </div>
+              </>
+            )}
 
             {/* ==================================================
-                MAIN GRID
+                BORROWING RECORDS
             ================================================== */}
 
-            <div className="grid min-h-0 grid-cols-1 gap-6 xl:grid-cols-[1.1fr_0.9fr]">
-              {/* =================================================
-                  LEFT COLUMN
-              ================================================= */}
+            {activeSection ===
+              "borrowing" && (
+              <div>
+                <div className="mb-6">
+                  <div className="flex items-center gap-2">
+                    <ClipboardList className="h-4 w-4 text-[#800000]" />
 
-              <div className="flex min-h-0 flex-col gap-6">
-                {/* CREATE LIC */}
+                    <span className="text-xs font-bold uppercase tracking-[0.16em] text-[#800000]">
+                      Records
+                    </span>
+                  </div>
+
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+                    <div>
+                      <h2 className="mt-1 text-2xl font-bold tracking-tight sm:text-3xl">
+                        Borrowing Records
+                      </h2>
+
+                      <p className="mt-1 text-sm text-gray-500">
+                        Monitor and review laboratory borrowing transactions.
+                      </p>
+                    </div>
+
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={fetchRequests}
+                      disabled={
+                        isLoadingRequests
+                      }
+                      className="h-10 rounded-xl"
+                    >
+                      <RefreshCw
+                        className={`mr-2 h-4 w-4 ${
+                          isLoadingRequests
+                            ? "animate-spin"
+                            : ""
+                        }`}
+                      />
+                      Refresh
+                    </Button>
+                  </div>
+                </div>
+
+                {/* STATUS FILTERS */}
+
+                <div className="mb-4 grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6">
+                  {(
+                    [
+                      "all",
+                      "pending",
+                      "approved",
+                      "rejected",
+                      "released",
+                      "returned",
+                    ] as RequestFilter[]
+                  ).map(
+                    (filter) => {
+                      const count =
+                        filter ===
+                        "all"
+                          ? requestStats.total
+                          : requestStats[
+                              filter
+                            ]
+
+                      return (
+                        <button
+                          key={
+                            filter
+                          }
+                          type="button"
+                          onClick={() =>
+                            setRequestFilter(
+                              filter
+                            )
+                          }
+                          className={`rounded-xl border px-3 py-3 text-left transition ${
+                            requestFilter ===
+                            filter
+                              ? "border-[#800000]/20 bg-[#800000]/5"
+                              : "border-gray-200 bg-white hover:bg-gray-50"
+                          }`}
+                        >
+                          <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400">
+                            {filter ===
+                            "all"
+                              ? "All"
+                              : filter}
+                          </p>
+
+                          <p className="mt-1 text-xl font-bold text-gray-900">
+                            {count}
+                          </p>
+                        </button>
+                      )
+                    }
+                  )}
+                </div>
 
                 <Card className="rounded-2xl border-gray-200 shadow-sm">
-                  <CardHeader className="border-b border-gray-100 pb-5">
-                    <div className="flex items-center justify-between gap-4">
+                  <CardHeader className="border-b border-gray-100">
+                    <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                      <div>
+                        <CardTitle className="text-base">
+                          All Requests
+                        </CardTitle>
+
+                        <p className="text-xs text-gray-400">
+                          {filteredRequests.length}{" "}
+                          record
+                          {filteredRequests.length !==
+                          1
+                            ? "s"
+                            : ""}{" "}
+                          found
+                        </p>
+                      </div>
+
+                      <div className="relative w-full lg:w-[320px]">
+                        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+
+                        <Input
+                          value={
+                            requestSearch
+                          }
+                          onChange={(
+                            e
+                          ) =>
+                            setRequestSearch(
+                              e.target
+                                .value
+                            )
+                          }
+                          placeholder="Search requests..."
+                          className="h-10 rounded-xl pl-9"
+                        />
+                      </div>
+                    </div>
+                  </CardHeader>
+
+                  <CardContent className="p-0">
+                    {isLoadingRequests ? (
+                      <div className="flex min-h-[400px] items-center justify-center">
+                        <Loader2 className="h-8 w-8 animate-spin text-[#800000]" />
+                      </div>
+                    ) : filteredRequests.length ===
+                      0 ? (
+                      <div className="flex min-h-[400px] flex-col items-center justify-center p-8 text-center">
+                        <ClipboardList className="mb-3 h-10 w-10 text-gray-300" />
+
+                        <p className="text-sm font-semibold text-gray-600">
+                          No records found
+                        </p>
+
+                        <p className="mt-1 text-xs text-gray-400">
+                          Try changing your search or filter.
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="overflow-x-auto">
+                        <table className="w-full min-w-[900px]">
+                          <thead>
+                            <tr className="border-b border-gray-100 bg-gray-50/70">
+                              <th className="px-5 py-3 text-left text-[10px] font-bold uppercase tracking-wider text-gray-400">
+                                Borrower
+                              </th>
+
+                              <th className="px-5 py-3 text-left text-[10px] font-bold uppercase tracking-wider text-gray-400">
+                                Instructor
+                              </th>
+
+                              <th className="px-5 py-3 text-left text-[10px] font-bold uppercase tracking-wider text-gray-400">
+                                Activity
+                              </th>
+
+                              <th className="px-5 py-3 text-left text-[10px] font-bold uppercase tracking-wider text-gray-400">
+                                Date
+                              </th>
+
+                              <th className="px-5 py-3 text-left text-[10px] font-bold uppercase tracking-wider text-gray-400">
+                                Status
+                              </th>
+
+                              <th className="px-5 py-3 text-right text-[10px] font-bold uppercase tracking-wider text-gray-400">
+                                Action
+                              </th>
+                            </tr>
+                          </thead>
+
+                          <tbody>
+                            {filteredRequests.map(
+                              (
+                                request
+                              ) => (
+                                <tr
+                                  key={
+                                    request._id
+                                  }
+                                  className="border-b border-gray-100 last:border-0 hover:bg-gray-50/50"
+                                >
+                                  <td className="px-5 py-4">
+                                    <p className="text-sm font-semibold text-gray-800">
+                                      {getRequestStudent(
+                                        request
+                                      )}
+                                    </p>
+
+                                    <p className="mt-0.5 text-xs text-gray-400">
+                                      {getStringValue(
+                                        request.section
+                                      )
+                                        ? `Section ${getStringValue(
+                                            request.section
+                                          )}`
+                                        : getStringValue(
+                                            request.studentId
+                                          ) ||
+                                          "Student"}
+                                    </p>
+                                  </td>
+
+                                  <td className="px-5 py-4">
+                                    <p className="text-sm text-gray-700">
+                                      {getRequestInstructor(
+                                        request
+                                      )}
+                                    </p>
+                                  </td>
+
+                                  <td className="max-w-[220px] px-5 py-4">
+                                    <p className="truncate text-sm text-gray-700">
+                                      {getStringValue(
+                                        request.activityTitle
+                                      ) ||
+                                        getStringValue(
+                                          request.purpose
+                                        ) ||
+                                        "Borrowing Request"}
+                                    </p>
+
+                                    <p className="mt-0.5 text-[10px] text-gray-400">
+                                      ID:{" "}
+                                      {request._id.slice(
+                                        -8
+                                      )}
+                                    </p>
+                                  </td>
+
+                                  <td className="px-5 py-4">
+                                    <p className="text-xs text-gray-600">
+                                      {formatDate(
+                                        request.createdAt
+                                      )}
+                                    </p>
+                                  </td>
+
+                                  <td className="px-5 py-4">
+                                    <span
+                                      className={`inline-flex rounded-full border px-2.5 py-1 text-[10px] font-semibold ${getStatusClasses(
+                                        request.status
+                                      )}`}
+                                    >
+                                      {getStatusLabel(
+                                        request.status
+                                      )}
+                                    </span>
+                                  </td>
+
+                                  <td className="px-5 py-4 text-right">
+                                    <Button
+                                      type="button"
+                                      size="sm"
+                                      variant="outline"
+                                      onClick={() =>
+                                        setSelectedRequest(
+                                          request
+                                        )
+                                      }
+                                      className="h-8 rounded-lg text-xs"
+                                    >
+                                      <Eye className="mr-1.5 h-3.5 w-3.5" />
+                                      View
+                                    </Button>
+                                  </td>
+                                </tr>
+                              )
+                            )}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              </div>
+            )}
+
+            {/* ==================================================
+                EQUIPMENT
+            ================================================== */}
+
+            {activeSection ===
+              "equipment" && (
+              <div>
+                <div className="mb-6">
+                  <div className="flex items-center gap-2">
+                    <BriefcaseBusiness className="h-4 w-4 text-[#800000]" />
+
+                    <span className="text-xs font-bold uppercase tracking-[0.16em] text-[#800000]">
+                      Inventory
+                    </span>
+                  </div>
+
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+                    <div>
+                      <h2 className="mt-1 text-2xl font-bold tracking-tight sm:text-3xl">
+                        Equipment
+                      </h2>
+
+                      <p className="mt-1 text-sm text-gray-500">
+                        View laboratory equipment and current inventory status.
+                      </p>
+                    </div>
+
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={fetchTools}
+                      disabled={isLoadingTools}
+                      className="h-10 rounded-xl"
+                    >
+                      <RefreshCw
+                        className={`mr-2 h-4 w-4 ${
+                          isLoadingTools
+                            ? "animate-spin"
+                            : ""
+                        }`}
+                      />
+                      Refresh
+                    </Button>
+                  </div>
+                </div>
+
+                {/* EQUIPMENT STATS */}
+
+                <div className="mb-5 grid grid-cols-2 gap-4 lg:grid-cols-4">
+                  <Card className="rounded-2xl border-gray-200 shadow-sm">
+                    <CardContent className="p-4">
+                      <p className="text-xs text-gray-400">
+                        Equipment Types
+                      </p>
+
+                      <p className="mt-1 text-2xl font-bold">
+                        {tools.length}
+                      </p>
+                    </CardContent>
+                  </Card>
+
+                  <Card className="rounded-2xl border-gray-200 shadow-sm">
+                    <CardContent className="p-4">
+                      <p className="text-xs text-gray-400">
+                        Total Units
+                      </p>
+
+                      <p className="mt-1 text-2xl font-bold">
+                        {totalEquipmentQuantity}
+                      </p>
+                    </CardContent>
+                  </Card>
+
+                  <Card className="rounded-2xl border-gray-200 shadow-sm">
+                    <CardContent className="p-4">
+                      <p className="text-xs text-gray-400">
+                        Low Stock
+                      </p>
+
+                      <p className="mt-1 text-2xl font-bold text-amber-600">
+                        {lowStockTools.length}
+                      </p>
+                    </CardContent>
+                  </Card>
+
+                  <Card className="rounded-2xl border-gray-200 shadow-sm">
+                    <CardContent className="p-4">
+                      <p className="text-xs text-gray-400">
+                        Unavailable
+                      </p>
+
+                      <p className="mt-1 text-2xl font-bold text-red-600">
+                        {unavailableTools.length}
+                      </p>
+                    </CardContent>
+                  </Card>
+                </div>
+
+                <Card className="rounded-2xl border-gray-200 shadow-sm">
+                  <CardHeader className="border-b border-gray-100">
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                      <div>
+                        <CardTitle className="text-base">
+                          Equipment Inventory
+                        </CardTitle>
+
+                        <p className="text-xs text-gray-400">
+                          {filteredTools.length}{" "}
+                          equipment
+                          {filteredTools.length !==
+                          1
+                            ? " items"
+                            : " item"}
+                        </p>
+                      </div>
+
+                      <div className="relative w-full sm:w-[300px]">
+                        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+
+                        <Input
+                          value={toolSearch}
+                          onChange={(e) =>
+                            setToolSearch(
+                              e.target
+                                .value
+                            )
+                          }
+                          placeholder="Search equipment..."
+                          className="h-10 rounded-xl pl-9"
+                        />
+                      </div>
+                    </div>
+                  </CardHeader>
+
+                  <CardContent className="p-4">
+                    {isLoadingTools ? (
+                      <div className="flex min-h-[400px] items-center justify-center">
+                        <Loader2 className="h-8 w-8 animate-spin text-[#800000]" />
+                      </div>
+                    ) : filteredTools.length ===
+                      0 ? (
+                      <div className="flex min-h-[350px] flex-col items-center justify-center text-center">
+                        <BriefcaseBusiness className="mb-3 h-10 w-10 text-gray-300" />
+
+                        <p className="text-sm font-semibold text-gray-600">
+                          No equipment found
+                        </p>
+
+                        <p className="mt-1 text-xs text-gray-400">
+                          Try another search.
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                        {filteredTools.map(
+                          (tool) => {
+                            const quantity =
+                              Number(
+                                tool.quantity ||
+                                  0
+                              )
+
+                            const isUnavailable =
+                              quantity ===
+                              0
+
+                            const isLowStock =
+                              quantity >
+                                0 &&
+                              quantity <
+                                5
+
+                            return (
+                              <div
+                                key={
+                                  tool._id
+                                }
+                                className="rounded-2xl border border-gray-100 bg-gray-50/60 p-4 transition hover:border-[#800000]/20 hover:bg-white"
+                              >
+                                <div className="flex items-start justify-between gap-3">
+                                  <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-[#800000]/10 text-[#800000]">
+                                    <BriefcaseBusiness className="h-5 w-5" />
+                                  </div>
+
+                                  <span
+                                    className={`rounded-full border px-2.5 py-1 text-[10px] font-semibold ${
+                                      isUnavailable
+                                        ? "border-red-100 bg-red-50 text-red-600"
+                                        : isLowStock
+                                          ? "border-amber-100 bg-amber-50 text-amber-700"
+                                          : "border-green-100 bg-green-50 text-green-700"
+                                    }`}
+                                  >
+                                    {isUnavailable
+                                      ? "Unavailable"
+                                      : isLowStock
+                                        ? "Low Stock"
+                                        : "Available"}
+                                  </span>
+                                </div>
+
+                                <h3 className="mt-4 truncate text-sm font-bold text-gray-800">
+                                  {
+                                    tool.name
+                                  }
+                                </h3>
+
+                                <div className="mt-3 flex items-end justify-between">
+                                  <div>
+                                    <p className="text-[10px] uppercase tracking-wider text-gray-400">
+                                      Quantity
+                                    </p>
+
+                                    <p className="mt-0.5 text-2xl font-bold">
+                                      {
+                                        quantity
+                                      }
+                                    </p>
+                                  </div>
+
+                                  <PackageCheck className="h-5 w-5 text-gray-300" />
+                                </div>
+                              </div>
+                            )
+                          }
+                        )}
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              </div>
+            )}
+
+            {/* ==================================================
+                USERS
+            ================================================== */}
+
+            {activeSection ===
+              "users" && (
+              <div>
+                <div className="mb-6">
+                  <div className="flex items-center gap-2">
+                    <Users className="h-4 w-4 text-[#800000]" />
+
+                    <span className="text-xs font-bold uppercase tracking-[0.16em] text-[#800000]">
+                      Management
+                    </span>
+                  </div>
+
+                  <h2 className="mt-1 text-2xl font-bold tracking-tight sm:text-3xl">
+                    Users
+                  </h2>
+
+                  <p className="mt-1 text-sm text-gray-500">
+                    Create and manage laboratory-in-charge accounts.
+                  </p>
+                </div>
+
+                <div className="grid grid-cols-1 gap-6 xl:grid-cols-[0.8fr_1.2fr]">
+                  {/* CREATE LIC */}
+
+                  <Card className="rounded-2xl border-gray-200 shadow-sm">
+                    <CardHeader className="border-b border-gray-100 pb-5">
                       <div className="flex items-center gap-3">
                         <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-[#800000] text-[#FFD700]">
                           <UserPlus className="h-5 w-5" />
@@ -890,372 +2422,399 @@ export default function AdminDashboard() {
                           </CardTitle>
 
                           <p className="mt-0.5 text-xs text-gray-400">
-                            Add a new laboratory-in-charge
-                            account
+                            Add laboratory personnel
                           </p>
                         </div>
                       </div>
+                    </CardHeader>
 
-                      <div className="hidden items-center gap-1.5 sm:flex">
-                        <div
-                          className={`h-2 w-8 rounded-full ${
-                            step === 1
-                              ? "bg-[#800000]"
-                              : "bg-gray-200"
-                          }`}
-                        />
+                    <CardContent className="p-5 sm:p-6">
+                      {step === 1 ? (
+                        <div className="space-y-4">
+                          <Input
+                            value={
+                              fullName
+                            }
+                            onChange={(
+                              e
+                            ) =>
+                              setFullName(
+                                e.target
+                                  .value
+                              )
+                            }
+                            placeholder="Full Name"
+                            className="h-11 rounded-xl"
+                          />
 
-                        <div
-                          className={`h-2 w-8 rounded-full ${
-                            step === 2
-                              ? "bg-[#800000]"
-                              : "bg-gray-200"
-                          }`}
-                        />
-                      </div>
-                    </div>
-                  </CardHeader>
+                          <Input
+                            value={
+                              employeeId
+                            }
+                            onChange={(
+                              e
+                            ) =>
+                              setEmployeeId(
+                                e.target
+                                  .value
+                              )
+                            }
+                            placeholder="Employee ID"
+                            className="h-11 rounded-xl"
+                          />
 
-                  <CardContent className="p-5 sm:p-6">
-                    {/* STEP 1 */}
+                          <Input
+                            value={
+                              department
+                            }
+                            onChange={(
+                              e
+                            ) =>
+                              setDepartment(
+                                e.target
+                                  .value
+                              )
+                            }
+                            placeholder="Department"
+                            className="h-11 rounded-xl"
+                          />
 
-                    {step === 1 && (
-                      <div className="space-y-5">
-                        <div>
-                          <p className="text-sm font-semibold text-gray-800">
-                            Personal Information
-                          </p>
-
-                          <p className="mt-0.5 text-xs text-gray-400">
-                            Enter the employee information below.
-                          </p>
-                        </div>
-
-                        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                          {/* FULL NAME */}
-
-                          <div className="space-y-1.5 sm:col-span-2">
-                            <label
-                              htmlFor="lic-full-name"
-                              className="text-xs font-semibold text-gray-600"
-                            >
-                              Full Name
-                            </label>
-
-                            <Input
-                              id="lic-full-name"
-                              value={fullName}
-                              onChange={(e) =>
-                                setFullName(e.target.value)
-                              }
-                              placeholder="e.g. Juan Dela Cruz"
-                              className="h-11 rounded-xl border-gray-200 bg-gray-50/50"
-                            />
-                          </div>
-
-                          {/* EMPLOYEE ID */}
-
-                          <div className="space-y-1.5">
-                            <label
-                              htmlFor="employee-id"
-                              className="text-xs font-semibold text-gray-600"
-                            >
-                              Employee ID
-                            </label>
-
-                            <Input
-                              id="employee-id"
-                              value={employeeId}
-                              onChange={(e) =>
-                                setEmployeeId(e.target.value)
-                              }
-                              placeholder="Employee ID"
-                              className="h-11 rounded-xl border-gray-200 bg-gray-50/50"
-                            />
-                          </div>
-
-                          {/* DEPARTMENT */}
-
-                          <div className="space-y-1.5">
-                            <label
-                              htmlFor="department"
-                              className="text-xs font-semibold text-gray-600"
-                            >
-                              Department
-                            </label>
-
-                            <Input
-                              id="department"
-                              value={department}
-                              onChange={(e) =>
-                                setDepartment(e.target.value)
-                              }
-                              placeholder="Department"
-                              className="h-11 rounded-xl border-gray-200 bg-gray-50/50"
-                            />
-                          </div>
-
-                          {/* CONTACT */}
-
-                          <div className="space-y-1.5 sm:col-span-2">
-                            <label
-                              htmlFor="contact-number"
-                              className="text-xs font-semibold text-gray-600"
-                            >
-                              Contact Number
-                            </label>
-
-                            <Input
-                              id="contact-number"
-                              value={contactNumber}
-                              onChange={(e) => {
-                                const value =
-                                  e.target.value.replace(
-                                    /\D/g,
-                                    ""
-                                  )
-
-                                setContactNumber(
-                                  value.slice(0, 11)
+                          <Input
+                            value={
+                              contactNumber
+                            }
+                            onChange={(
+                              e
+                            ) => {
+                              const value =
+                                e.target.value.replace(
+                                  /\D/g,
+                                  ""
                                 )
-                              }}
-                              placeholder="09XXXXXXXXX"
-                              inputMode="numeric"
-                              maxLength={11}
-                              className="h-11 rounded-xl border-gray-200 bg-gray-50/50"
-                            />
 
-                            <p className="text-[10px] text-gray-400">
-                              {contactNumber.length}/11 digits
-                            </p>
-                          </div>
-                        </div>
+                              setContactNumber(
+                                value.slice(
+                                  0,
+                                  11
+                                )
+                              )
+                            }}
+                            placeholder="09XXXXXXXXX"
+                            inputMode="numeric"
+                            maxLength={
+                              11
+                            }
+                            className="h-11 rounded-xl"
+                          />
 
-                        <div className="flex justify-end pt-1">
                           <Button
                             type="button"
-                            onClick={handleNextStep}
-                            className="
-                              h-11
-                              rounded-xl
-                              bg-[#800000]
-                              px-6
-                              font-semibold
-                              text-[#FFD700]
-                              hover:bg-[#660000]
-                            "
+                            onClick={
+                              handleNextStep
+                            }
+                            className="h-11 w-full rounded-xl bg-[#800000] text-[#FFD700] hover:bg-[#660000]"
                           >
                             Continue
-
                             <ArrowRight className="ml-2 h-4 w-4" />
                           </Button>
                         </div>
-                      </div>
-                    )}
-
-                    {/* STEP 2 */}
-
-                    {step === 2 && (
-                      <div className="space-y-5">
-                        <div>
-                          <div className="mb-1 flex items-center gap-2">
-                            <CheckCircle2 className="h-4 w-4 text-green-600" />
-
-                            <p className="text-sm font-semibold text-gray-800">
-                              Account Details
-                            </p>
-                          </div>
-
-                          <p className="text-xs text-gray-400">
-                            Complete the login information for{" "}
-                            <span className="font-medium text-gray-600">
-                              {fullName}
-                            </span>
-                            .
-                          </p>
-                        </div>
-
-                        {/* EMAIL */}
-
-                        <div className="space-y-1.5">
-                          <label
-                            htmlFor="lic-email"
-                            className="flex items-center gap-2 text-xs font-semibold text-gray-600"
-                          >
-                            <Mail className="h-3.5 w-3.5 text-[#800000]" />
-                            Email Address
-                          </label>
-
+                      ) : (
+                        <div className="space-y-4">
                           <Input
-                            id="lic-email"
                             type="email"
-                            value={email}
-                            onChange={(e) =>
-                              setEmail(e.target.value)
+                            value={
+                              email
+                            }
+                            onChange={(
+                              e
+                            ) =>
+                              setEmail(
+                                e.target
+                                  .value
+                              )
                             }
                             placeholder="employee@school.edu"
-                            className="h-11 rounded-xl border-gray-200 bg-gray-50/50"
+                            className="h-11 rounded-xl"
                           />
-                        </div>
 
-                        {/* PASSWORD */}
+                          <div className="rounded-xl border border-[#FFD700]/40 bg-[#FFD700]/10 p-4">
+                            <p className="text-xs font-bold uppercase tracking-wider text-[#800000]">
+                              Temporary Password
+                            </p>
 
-                        <div className="rounded-xl border border-[#FFD700]/40 bg-[#FFD700]/10 p-4">
-                          <div className="flex items-start justify-between gap-4">
-                            <div className="min-w-0">
-                              <p className="text-xs font-bold uppercase tracking-wider text-[#800000]">
-                                Temporary Password
+                            <div className="mt-1 flex items-center justify-between gap-3">
+                              <p className="break-all font-mono font-bold">
+                                {
+                                  tempPassword
+                                }
                               </p>
 
-                              <p className="mt-1 break-all font-mono text-lg font-bold tracking-wider text-gray-800">
-                                {tempPassword}
-                              </p>
-
-                              <p className="mt-1 text-[11px] text-gray-500">
-                                Give this password to the LIC
-                                for their first login.
-                              </p>
+                              <Button
+                                type="button"
+                                size="icon"
+                                variant="outline"
+                                onClick={
+                                  copyPassword
+                                }
+                              >
+                                <Copy className="h-4 w-4" />
+                              </Button>
                             </div>
+                          </div>
+
+                          <div className="flex gap-2">
+                            <Button
+                              type="button"
+                              variant="outline"
+                              onClick={() =>
+                                setStep(
+                                  1
+                                )
+                              }
+                              disabled={
+                                isCreatingLIC
+                              }
+                              className="h-11 flex-1 rounded-xl"
+                            >
+                              Back
+                            </Button>
 
                             <Button
                               type="button"
-                              size="icon"
-                              variant="outline"
-                              onClick={copyPassword}
-                              className="shrink-0 rounded-lg border-[#800000]/20"
+                              onClick={
+                                handleCreateAccount
+                              }
+                              disabled={
+                                isCreatingLIC
+                              }
+                              className="h-11 flex-1 rounded-xl bg-[#800000] text-[#FFD700] hover:bg-[#660000]"
                             >
-                              <Copy className="h-4 w-4 text-[#800000]" />
+                              {isCreatingLIC
+                                ? "Creating..."
+                                : "Create Account"}
                             </Button>
                           </div>
                         </div>
+                      )}
+                    </CardContent>
+                  </Card>
 
-                        {/* ACTIONS */}
+                  {/* LIC LIST */}
 
-                        <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-between">
-                          <Button
-                            type="button"
-                            variant="outline"
-                            onClick={() => setStep(1)}
-                            disabled={isCreatingLIC}
-                            className="h-11 rounded-xl"
-                          >
-                            Back
-                          </Button>
+                  <Card className="rounded-2xl border-gray-200 shadow-sm">
+                    <CardHeader className="border-b border-gray-100">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <CardTitle className="text-base">
+                            LIC Accounts
+                          </CardTitle>
 
-                          <Button
-                            type="button"
-                            onClick={handleCreateAccount}
-                            disabled={isCreatingLIC}
-                            className="
-                              h-11
-                              rounded-xl
-                              bg-[#800000]
-                              px-6
-                              font-semibold
-                              text-[#FFD700]
-                              hover:bg-[#660000]
-                            "
-                          >
-                            {isCreatingLIC
-                              ? "Creating..."
-                              : "Create LIC Account"}
+                          <p className="text-xs text-gray-400">
+                            Laboratory-in-Charge users
+                          </p>
+                        </div>
 
-                            {!isCreatingLIC && (
-                              <ArrowRight className="ml-2 h-4 w-4" />
-                            )}
-                          </Button>
+                        <span className="rounded-full bg-[#800000]/10 px-3 py-1 text-xs font-bold text-[#800000]">
+                          {
+                            labAccounts.length
+                          }
+                        </span>
+                      </div>
+                    </CardHeader>
+
+                    <CardContent className="max-h-[650px] overflow-y-auto p-4">
+                      {isLoadingLICs ? (
+                        <div className="flex min-h-[300px] items-center justify-center">
+                          <Loader2 className="h-7 w-7 animate-spin text-[#800000]" />
+                        </div>
+                      ) : labAccounts.length ===
+                        0 ? (
+                        <div className="flex min-h-[300px] flex-col items-center justify-center text-center">
+                          <Users className="mb-3 h-8 w-8 text-gray-300" />
+
+                          <p className="text-sm font-semibold text-gray-600">
+                            No LIC accounts
+                          </p>
+
+                          <p className="mt-1 text-xs text-gray-400">
+                            Create your first LIC account.
+                          </p>
+                        </div>
+                      ) : (
+                        <div className="space-y-2">
+                          {labAccounts.map(
+                            (acc) => (
+                              <div
+                                key={
+                                  acc._id
+                                }
+                                className="rounded-xl border border-gray-100 bg-gray-50/60 p-3"
+                              >
+                                <div className="flex items-center gap-3">
+                                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#800000] font-bold text-[#FFD700]">
+                                    {acc.fullName
+                                      .charAt(
+                                        0
+                                      )
+                                      .toUpperCase()}
+                                  </div>
+
+                                  <div className="min-w-0 flex-1">
+                                    <p className="truncate text-sm font-semibold">
+                                      {
+                                        acc.fullName
+                                      }
+                                    </p>
+
+                                    <p className="truncate text-xs text-gray-400">
+                                      {
+                                        acc.email
+                                      }
+                                    </p>
+
+                                    <div className="mt-1 flex flex-wrap gap-1.5">
+                                      <span className="rounded-md bg-white px-2 py-0.5 text-[10px] text-gray-500">
+                                        {
+                                          acc.employeeId
+                                        }
+                                      </span>
+
+                                      <span className="rounded-md bg-white px-2 py-0.5 text-[10px] text-gray-500">
+                                        {
+                                          acc.department
+                                        }
+                                      </span>
+                                    </div>
+                                  </div>
+
+                                  <Button
+                                    type="button"
+                                    size="icon"
+                                    variant="ghost"
+                                    onClick={() =>
+                                      openDeleteModal(
+                                        acc._id,
+                                        "lic"
+                                      )
+                                    }
+                                    className="h-8 w-8 rounded-lg text-gray-400 hover:bg-red-50 hover:text-red-600"
+                                  >
+                                    <Trash2 className="h-4 w-4" />
+                                  </Button>
+                                </div>
+                              </div>
+                            )
+                          )}
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                </div>
+              </div>
+            )}
+
+            {/* ==================================================
+                INSTRUCTORS
+            ================================================== */}
+
+            {activeSection ===
+              "instructors" && (
+              <div>
+                <div className="mb-6">
+                  <div className="flex items-center gap-2">
+                    <GraduationCap className="h-4 w-4 text-[#800000]" />
+
+                    <span className="text-xs font-bold uppercase tracking-[0.16em] text-[#800000]">
+                      Management
+                    </span>
+                  </div>
+
+                  <h2 className="mt-1 text-2xl font-bold tracking-tight sm:text-3xl">
+                    Instructors
+                  </h2>
+
+                  <p className="mt-1 text-sm text-gray-500">
+                    Manage instructors available for borrower slips.
+                  </p>
+                </div>
+
+                <div className="grid grid-cols-1 gap-6 xl:grid-cols-[0.8fr_1.2fr]">
+                  {/* ADD INSTRUCTOR */}
+
+                  <Card className="rounded-2xl border-gray-200 shadow-sm">
+                    <CardHeader className="border-b border-gray-100 pb-5">
+                      <div className="flex items-center gap-3">
+                        <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-[#FFD700]/20 text-[#800000]">
+                          <GraduationCap className="h-5 w-5" />
+                        </div>
+
+                        <div>
+                          <CardTitle className="text-base">
+                            Add Instructor
+                          </CardTitle>
+
+                          <p className="mt-0.5 text-xs text-gray-400">
+                            Register teaching staff
+                          </p>
                         </div>
                       </div>
-                    )}
-                  </CardContent>
-                </Card>
+                    </CardHeader>
 
-                {/* =================================================
-                    ADD INSTRUCTOR
-                ================================================= */}
-
-                <Card className="rounded-2xl border-gray-200 shadow-sm">
-                  <CardHeader className="border-b border-gray-100 pb-5">
-                    <div className="flex items-center gap-3">
-                      <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-[#FFD700]/20 text-[#800000]">
-                        <GraduationCap className="h-5 w-5" />
-                      </div>
-
-                      <div>
-                        <CardTitle className="text-base">
-                          Add Instructor
-                        </CardTitle>
-
-                        <p className="mt-0.5 text-xs text-gray-400">
-                          Register an instructor for borrower
-                          slips.
-                        </p>
-                      </div>
-                    </div>
-                  </CardHeader>
-
-                  <CardContent className="p-5 sm:p-6">
-                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                      {/* NAME */}
-
+                    <CardContent className="space-y-4 p-5 sm:p-6">
                       <div className="space-y-1.5">
-                        <label
-                          htmlFor="instructor-name"
-                          className="text-xs font-semibold text-gray-600"
-                        >
+                        <label className="text-xs font-semibold text-gray-600">
                           Instructor Name
                         </label>
 
                         <Input
-                          id="instructor-name"
-                          value={instructorName}
-                          onChange={(e) =>
-                            setInstructorName(e.target.value)
+                          value={
+                            instructorName
+                          }
+                          onChange={(
+                            e
+                          ) =>
+                            setInstructorName(
+                              e.target
+                                .value
+                            )
                           }
                           placeholder="Full name"
-                          className="h-11 rounded-xl border-gray-200 bg-gray-50/50"
+                          className="h-11 rounded-xl"
                         />
                       </div>
 
-                      {/* EMAIL */}
-
                       <div className="space-y-1.5">
-                        <label
-                          htmlFor="instructor-email"
-                          className="text-xs font-semibold text-gray-600"
-                        >
+                        <label className="text-xs font-semibold text-gray-600">
                           Email Address
                         </label>
 
                         <Input
-                          id="instructor-email"
                           type="email"
-                          value={instructorEmail}
-                          onChange={(e) =>
-                            setInstructorEmail(e.target.value)
+                          value={
+                            instructorEmail
+                          }
+                          onChange={(
+                            e
+                          ) =>
+                            setInstructorEmail(
+                              e.target
+                                .value
+                            )
                           }
                           placeholder="instructor@school.edu"
-                          className="h-11 rounded-xl border-gray-200 bg-gray-50/50"
+                          className="h-11 rounded-xl"
                         />
                       </div>
-                    </div>
 
-                    <div className="mt-4 flex justify-end">
                       <Button
                         type="button"
-                        onClick={handleAddTeacher}
-                        disabled={isAddingTeacher}
-                        className="
-                          h-11
-                          w-full
-                          rounded-xl
-                          bg-[#800000]
-                          px-6
-                          font-semibold
-                          text-[#FFD700]
-                          hover:bg-[#660000]
-                          sm:w-auto
-                        "
+                        onClick={
+                          handleAddTeacher
+                        }
+                        disabled={
+                          isAddingTeacher
+                        }
+                        className="h-11 w-full rounded-xl bg-[#800000] font-semibold text-[#FFD700] hover:bg-[#660000]"
                       >
                         <Plus className="mr-2 h-4 w-4" />
 
@@ -1263,315 +2822,149 @@ export default function AdminDashboard() {
                           ? "Adding..."
                           : "Add Instructor"}
                       </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
+                    </CardContent>
+                  </Card>
 
-              {/* =================================================
-                  RIGHT COLUMN
-              ================================================= */}
+                  {/* INSTRUCTOR LIST */}
 
-              <div className="grid min-h-0 grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-1">
-                {/* =================================================
-                    LIC ACCOUNTS
-                ================================================= */}
-
-                <Card className="flex min-h-[350px] flex-col rounded-2xl border-gray-200 shadow-sm xl:h-[calc(50vh-70px)] xl:min-h-[360px]">
-                  <CardHeader className="border-b border-gray-100 pb-4">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#800000]/10 text-[#800000]">
-                          <ShieldCheck className="h-5 w-5" />
-                        </div>
-
+                  <Card className="rounded-2xl border-gray-200 shadow-sm">
+                    <CardHeader className="border-b border-gray-100">
+                      <div className="flex items-center justify-between">
                         <div>
-                          <CardTitle className="text-sm">
-                            LIC Accounts
+                          <CardTitle className="text-base">
+                            Registered Instructors
                           </CardTitle>
 
-                          <p className="text-[11px] text-gray-400">
-                            Laboratory-in-Charge users
+                          <p className="text-xs text-gray-400">
+                            Teaching staff
                           </p>
                         </div>
+
+                        <span className="rounded-full bg-[#FFD700]/25 px-3 py-1 text-xs font-bold text-[#800000]">
+                          {
+                            teachers.length
+                          }
+                        </span>
                       </div>
+                    </CardHeader>
 
-                      <span className="rounded-full bg-[#800000]/10 px-2.5 py-1 text-xs font-bold text-[#800000]">
-                        {labAccounts.length}
-                      </span>
-                    </div>
-                  </CardHeader>
-
-                  <CardContent className="min-h-0 flex-1 overflow-y-auto p-4">
-                    {isLoadingLICs ? (
-                      <div className="flex h-full min-h-[220px] flex-col items-center justify-center">
-                        <div className="h-8 w-8 animate-spin rounded-full border-2 border-gray-200 border-t-[#800000]" />
-
-                        <p className="mt-3 text-xs text-gray-400">
-                          Loading LIC accounts...
-                        </p>
-                      </div>
-                    ) : labAccounts.length === 0 ? (
-                      <div className="flex h-full min-h-[220px] flex-col items-center justify-center text-center">
-                        <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-gray-100 text-gray-400">
-                          <Users className="h-5 w-5" />
+                    <CardContent className="max-h-[650px] overflow-y-auto p-4">
+                      {isLoadingTeachers ? (
+                        <div className="flex min-h-[300px] items-center justify-center">
+                          <Loader2 className="h-7 w-7 animate-spin text-[#800000]" />
                         </div>
+                      ) : teachers.length ===
+                        0 ? (
+                        <div className="flex min-h-[300px] flex-col items-center justify-center text-center">
+                          <GraduationCap className="mb-3 h-8 w-8 text-gray-300" />
 
-                        <p className="text-sm font-semibold text-gray-600">
-                          No LIC accounts
-                        </p>
+                          <p className="text-sm font-semibold text-gray-600">
+                            No instructors
+                          </p>
 
-                        <p className="mt-1 max-w-[220px] text-xs text-gray-400">
-                          Create your first laboratory-in-charge
-                          account using the form.
-                        </p>
-                      </div>
-                    ) : (
-                      <div className="space-y-2">
-                        {labAccounts.map((acc) => (
-                          <div
-                            key={acc._id}
-                            className="
-                              group
-                              rounded-xl
-                              border
-                              border-gray-100
-                              bg-gray-50/60
-                              p-3
-                              transition
-                              hover:border-[#800000]/20
-                              hover:bg-[#800000]/[0.025]
-                            "
-                          >
-                            <div className="flex items-center gap-3">
-                              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#800000] text-sm font-bold text-[#FFD700]">
-                                {acc.fullName
-                                  .charAt(0)
-                                  .toUpperCase()}
-                              </div>
-
-                              <div className="min-w-0 flex-1">
-                                <p className="truncate text-sm font-semibold text-gray-800">
-                                  {acc.fullName}
-                                </p>
-
-                                <p className="truncate text-xs text-gray-400">
-                                  {acc.email}
-                                </p>
-
-                                <div className="mt-1 flex flex-wrap gap-1.5">
-                                  <span className="rounded-md bg-white px-1.5 py-0.5 text-[10px] font-medium text-gray-500">
-                                    {acc.employeeId}
-                                  </span>
-
-                                  <span className="rounded-md bg-white px-1.5 py-0.5 text-[10px] font-medium text-gray-500">
-                                    {acc.department}
-                                  </span>
-                                </div>
-                              </div>
-
-                              <Button
-                                type="button"
-                                size="icon"
-                                variant="ghost"
-                                onClick={() =>
-                                  openDeleteModal(
-                                    acc._id,
-                                    "lic"
-                                  )
-                                }
-                                className="
-                                  h-8
-                                  w-8
-                                  shrink-0
-                                  rounded-lg
-                                  text-gray-400
-                                  hover:bg-red-50
-                                  hover:text-red-600
-                                "
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
-
-                {/* =================================================
-                    INSTRUCTORS
-                ================================================= */}
-
-                <Card className="flex min-h-[350px] flex-col rounded-2xl border-gray-200 shadow-sm xl:h-[calc(50vh-70px)] xl:min-h-[360px]">
-                  <CardHeader className="border-b border-gray-100 pb-4">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#FFD700]/20 text-[#800000]">
-                          <GraduationCap className="h-5 w-5" />
-                        </div>
-
-                        <div>
-                          <CardTitle className="text-sm">
-                            Instructors
-                          </CardTitle>
-
-                          <p className="text-[11px] text-gray-400">
-                            Registered teaching staff
+                          <p className="mt-1 text-xs text-gray-400">
+                            Add an instructor using the form.
                           </p>
                         </div>
-                      </div>
+                      ) : (
+                        <div className="space-y-2">
+                          {teachers.map(
+                            (teacher) => (
+                              <div
+                                key={
+                                  teacher._id
+                                }
+                                className="rounded-xl border border-gray-100 bg-gray-50/60 p-3"
+                              >
+                                <div className="flex items-center gap-3">
+                                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#FFD700]/25 font-bold text-[#800000]">
+                                    {teacher.name
+                                      .charAt(
+                                        0
+                                      )
+                                      .toUpperCase()}
+                                  </div>
 
-                      <span className="rounded-full bg-[#FFD700]/25 px-2.5 py-1 text-xs font-bold text-[#800000]">
-                        {teachers.length}
-                      </span>
-                    </div>
-                  </CardHeader>
+                                  <div className="min-w-0 flex-1">
+                                    <p className="truncate text-sm font-semibold">
+                                      {
+                                        teacher.name
+                                      }
+                                    </p>
 
-                  <CardContent className="min-h-0 flex-1 overflow-y-auto p-4">
-                    {isLoadingTeachers ? (
-                      <div className="flex h-full min-h-[220px] flex-col items-center justify-center">
-                        <div className="h-8 w-8 animate-spin rounded-full border-2 border-gray-200 border-t-[#800000]" />
+                                    <div className="mt-1 flex items-center gap-1.5">
+                                      <Mail className="h-3 w-3 text-gray-400" />
 
-                        <p className="mt-3 text-xs text-gray-400">
-                          Loading instructors...
-                        </p>
-                      </div>
-                    ) : teachers.length === 0 ? (
-                      <div className="flex h-full min-h-[220px] flex-col items-center justify-center text-center">
-                        <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-gray-100 text-gray-400">
-                          <GraduationCap className="h-5 w-5" />
-                        </div>
+                                      <p className="truncate text-xs text-gray-400">
+                                        {
+                                          teacher.email
+                                        }
+                                      </p>
+                                    </div>
+                                  </div>
 
-                        <p className="text-sm font-semibold text-gray-600">
-                          No instructors
-                        </p>
-
-                        <p className="mt-1 max-w-[220px] text-xs text-gray-400">
-                          Add an instructor to make them available
-                          on borrower slips.
-                        </p>
-                      </div>
-                    ) : (
-                      <div className="space-y-2">
-                        {teachers.map((teacher) => (
-                          <div
-                            key={teacher._id}
-                            className="
-                              group
-                              rounded-xl
-                              border
-                              border-gray-100
-                              bg-gray-50/60
-                              p-3
-                              transition
-                              hover:border-[#FFD700]/40
-                              hover:bg-[#FFD700]/[0.04]
-                            "
-                          >
-                            <div className="flex items-center gap-3">
-                              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#FFD700]/25 text-sm font-bold text-[#800000]">
-                                {teacher.name
-                                  .charAt(0)
-                                  .toUpperCase()}
-                              </div>
-
-                              <div className="min-w-0 flex-1">
-                                <p className="truncate text-sm font-semibold text-gray-800">
-                                  {teacher.name}
-                                </p>
-
-                                <div className="mt-1 flex items-center gap-1.5">
-                                  <Mail className="h-3 w-3 shrink-0 text-gray-400" />
-
-                                  <p className="truncate text-xs text-gray-400">
-                                    {teacher.email}
-                                  </p>
+                                  <Button
+                                    type="button"
+                                    size="icon"
+                                    variant="ghost"
+                                    onClick={() =>
+                                      openDeleteModal(
+                                        teacher._id,
+                                        "teacher"
+                                      )
+                                    }
+                                    className="h-8 w-8 rounded-lg text-gray-400 hover:bg-red-50 hover:text-red-600"
+                                  >
+                                    <Trash2 className="h-4 w-4" />
+                                  </Button>
                                 </div>
                               </div>
-
-                              <Button
-                                type="button"
-                                size="icon"
-                                variant="ghost"
-                                onClick={() =>
-                                  openDeleteModal(
-                                    teacher._id,
-                                    "teacher"
-                                  )
-                                }
-                                className="
-                                  h-8
-                                  w-8
-                                  shrink-0
-                                  rounded-lg
-                                  text-gray-400
-                                  hover:bg-red-50
-                                  hover:text-red-600
-                                "
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
+                            )
+                          )}
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                </div>
               </div>
-            </div>
+            )}
           </div>
         </div>
       </main>
 
       {/* ======================================================
-          DELETE MODAL
+          REQUEST DETAILS MODAL
       ====================================================== */}
 
-      {showModal && deleteTarget && (
+      {selectedRequest && (
         <div
-          className="
-            fixed inset-0 z-[100]
-            flex items-center justify-center
-            bg-black/30
-            p-4
-            backdrop-blur-sm
-          "
+          className="fixed inset-0 z-[90] flex items-center justify-center bg-black/30 p-4 backdrop-blur-sm"
           onMouseDown={(e) => {
-            if (e.target === e.currentTarget) {
-              closeDeleteModal()
+            if (
+              e.target ===
+              e.currentTarget
+            ) {
+              setSelectedRequest(null)
             }
           }}
         >
-          <div
-            className="
-              w-full
-              max-w-md
-              overflow-hidden
-              rounded-2xl
-              border
-              border-gray-200
-              bg-white
-              shadow-[0_25px_80px_rgba(0,0,0,0.18)]
-            "
-          >
+          <div className="flex max-h-[90vh] w-full max-w-2xl flex-col overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-[0_25px_80px_rgba(0,0,0,0.18)]">
             {/* HEADER */}
 
-            <div className="flex items-center justify-between border-b border-gray-100 px-5 py-4">
+            <div className="flex shrink-0 items-center justify-between border-b border-gray-100 px-5 py-4">
               <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-red-50 text-red-600">
-                  <Trash2 className="h-5 w-5" />
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#800000]/10 text-[#800000]">
+                  <ClipboardList className="h-5 w-5" />
                 </div>
 
                 <div>
-                  <h2 className="text-sm font-bold text-gray-900">
-                    Confirm Deletion
+                  <h2 className="text-sm font-bold">
+                    Borrowing Request
                   </h2>
 
-                  <p className="text-xs text-gray-400">
-                    This action cannot be undone.
+                  <p className="text-[10px] text-gray-400">
+                    ID:{" "}
+                    {selectedRequest._id}
                   </p>
                 </div>
               </div>
@@ -1580,9 +2973,10 @@ export default function AdminDashboard() {
                 type="button"
                 variant="ghost"
                 size="icon"
-                onClick={closeDeleteModal}
-                disabled={isDeleting}
-                className="h-8 w-8 rounded-lg text-gray-400 hover:bg-gray-100 hover:text-gray-700"
+                onClick={() =>
+                  setSelectedRequest(null)
+                }
+                className="h-8 w-8 rounded-lg"
               >
                 <X className="h-4 w-4" />
               </Button>
@@ -1590,60 +2984,391 @@ export default function AdminDashboard() {
 
             {/* CONTENT */}
 
-            <div className="p-5">
-              <p className="text-sm leading-relaxed text-gray-600">
-                Are you sure you want to delete this{" "}
-                <span className="font-semibold text-gray-900">
-                  {deleteTarget.type === "lic"
-                    ? "LIC account"
-                    : "instructor"}
-                </span>
-                ?
-              </p>
+            <div className="flex-1 overflow-y-auto p-5">
+              {/* STATUS */}
 
-              <div className="mt-4 rounded-xl border border-red-100 bg-red-50 p-3">
-                <p className="text-xs leading-relaxed text-red-700">
-                  Deleting this record will permanently remove
-                  it from the system.
+              <div className="mb-5 flex items-center justify-between rounded-xl border border-gray-100 bg-gray-50 p-4">
+                <div>
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400">
+                    Current Status
+                  </p>
+
+                  <p className="mt-1 text-sm font-semibold">
+                    {getStatusLabel(
+                      selectedRequest.status
+                    )}
+                  </p>
+                </div>
+
+                <span
+                  className={`rounded-full border px-3 py-1.5 text-xs font-semibold ${getStatusClasses(
+                    selectedRequest.status
+                  )}`}
+                >
+                  {getStatusLabel(
+                    selectedRequest.status
+                  )}
+                </span>
+              </div>
+
+              {/* BORROWER */}
+
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <div className="rounded-xl border border-gray-100 p-4">
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400">
+                    Student / Borrower
+                  </p>
+
+                  <p className="mt-1 text-sm font-semibold text-gray-800">
+                    {getRequestStudent(
+                      selectedRequest
+                    )}
+                  </p>
+
+                  {getStringValue(
+                    selectedRequest.studentId
+                  ) && (
+                    <p className="mt-1 text-xs text-gray-400">
+                      ID:{" "}
+                      {getStringValue(
+                        selectedRequest.studentId
+                      )}
+                    </p>
+                  )}
+                </div>
+
+                <div className="rounded-xl border border-gray-100 p-4">
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400">
+                    Instructor
+                  </p>
+
+                  <p className="mt-1 text-sm font-semibold text-gray-800">
+                    {getRequestInstructor(
+                      selectedRequest
+                    )}
+                  </p>
+                </div>
+
+                <div className="rounded-xl border border-gray-100 p-4">
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400">
+                    Section
+                  </p>
+
+                  <p className="mt-1 text-sm font-semibold text-gray-800">
+                    {getStringValue(
+                      selectedRequest.section
+                    ) ||
+                      "N/A"}
+                  </p>
+                </div>
+
+                <div className="rounded-xl border border-gray-100 p-4">
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400">
+                    Group
+                  </p>
+
+                  <p className="mt-1 text-sm font-semibold text-gray-800">
+                    {getStringValue(
+                      selectedRequest.groupNumber
+                    ) ||
+                      "N/A"}
+                  </p>
+                </div>
+              </div>
+
+              {/* ACTIVITY */}
+
+              <div className="mt-4 rounded-xl border border-gray-100 p-4">
+                <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400">
+                  Activity / Purpose
+                </p>
+
+                <p className="mt-1 text-sm font-semibold text-gray-800">
+                  {getStringValue(
+                    selectedRequest.activityTitle
+                  ) ||
+                    getStringValue(
+                      selectedRequest.purpose
+                    ) ||
+                    "N/A"}
                 </p>
               </div>
+
+              {/* ITEMS */}
+
+              <div className="mt-4 rounded-xl border border-gray-100 p-4">
+                <div className="mb-3 flex items-center justify-between">
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400">
+                    Requested Equipment
+                  </p>
+
+                  <span className="text-[10px] text-gray-400">
+                    {
+                      getRequestItems(
+                        selectedRequest
+                      ).length
+                    }{" "}
+                    item
+                    {getRequestItems(
+                      selectedRequest
+                    ).length !==
+                    1
+                      ? "s"
+                      : ""}
+                  </span>
+                </div>
+
+                {getRequestItems(
+                  selectedRequest
+                ).length === 0 ? (
+                  <p className="text-xs text-gray-400">
+                    No equipment details available.
+                  </p>
+                ) : (
+                  <div className="space-y-2">
+                    {getRequestItems(
+                      selectedRequest
+                    ).map(
+                      (
+                        item,
+                        index
+                      ) => (
+                        <div
+                          key={
+                            `${getItemName(
+                              item
+                            )}-${index}`
+                          }
+                          className="flex items-center justify-between rounded-lg bg-gray-50 px-3 py-2"
+                        >
+                          <p className="text-xs font-medium text-gray-700">
+                            {getItemName(
+                              item
+                            )}
+                          </p>
+
+                          <span className="text-xs font-bold text-gray-600">
+                            ×{" "}
+                            {getItemQuantity(
+                              item
+                            )}
+                          </span>
+                        </div>
+                      )
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {/* DATES */}
+
+              <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <div className="rounded-xl border border-gray-100 p-4">
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400">
+                    Request Date
+                  </p>
+
+                  <p className="mt-1 text-sm font-semibold">
+                    {formatDateTime(
+                      selectedRequest.createdAt
+                    )}
+                  </p>
+                </div>
+
+                <div className="rounded-xl border border-gray-100 p-4">
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400">
+                    Requested Borrow Date
+                  </p>
+
+                  <p className="mt-1 text-sm font-semibold">
+                    {formatDate(
+                      selectedRequest.requestedDate ||
+                        selectedRequest.borrowDate
+                    )}
+                  </p>
+                </div>
+
+                <div className="rounded-xl border border-gray-100 p-4">
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400">
+                    Expected Return
+                  </p>
+
+                  <p className="mt-1 text-sm font-semibold">
+                    {formatDate(
+                      selectedRequest.expectedReturnDate ||
+                        selectedRequest.returnDate
+                    )}
+                  </p>
+                </div>
+              </div>
+
+              {/* REJECTION */}
+
+              {(
+                getStringValue(
+                  selectedRequest.rejectReason
+                ) ||
+                getStringValue(
+                  selectedRequest.reason
+                )
+              ) && (
+                <div className="mt-4 rounded-xl border border-red-100 bg-red-50 p-4">
+                  <div className="flex items-center gap-2">
+                    <XCircle className="h-4 w-4 text-red-600" />
+
+                    <p className="text-xs font-bold text-red-700">
+                      Rejection / Reason
+                    </p>
+                  </div>
+
+                  <p className="mt-2 text-xs leading-relaxed text-red-600">
+                    {getStringValue(
+                      selectedRequest.rejectReason
+                    ) ||
+                      getStringValue(
+                        selectedRequest.reason
+                      )}
+                  </p>
+                </div>
+              )}
             </div>
 
             {/* FOOTER */}
 
-            <div className="flex flex-col-reverse gap-2 border-t border-gray-100 bg-gray-50/70 px-5 py-4 sm:flex-row sm:justify-end">
+            <div className="flex shrink-0 justify-end border-t border-gray-100 bg-gray-50/70 px-5 py-4">
               <Button
                 type="button"
                 variant="outline"
-                onClick={closeDeleteModal}
-                disabled={isDeleting}
+                onClick={() =>
+                  setSelectedRequest(null)
+                }
                 className="h-10 rounded-xl"
               >
-                Cancel
-              </Button>
-
-              <Button
-                type="button"
-                onClick={handleDelete}
-                disabled={isDeleting}
-                className="
-                  h-10
-                  rounded-xl
-                  bg-red-600
-                  px-5
-                  font-semibold
-                  text-white
-                  hover:bg-red-700
-                "
-              >
-                <Trash2 className="mr-2 h-4 w-4" />
-
-                {isDeleting ? "Deleting..." : "Delete"}
+                Close
               </Button>
             </div>
           </div>
         </div>
       )}
+
+      {/* ======================================================
+          DELETE MODAL
+      ====================================================== */}
+
+      {showDeleteModal &&
+        deleteTarget && (
+          <div
+            className="fixed inset-0 z-[100] flex items-center justify-center bg-black/30 p-4 backdrop-blur-sm"
+            onMouseDown={(e) => {
+              if (
+                e.target ===
+                e.currentTarget
+              ) {
+                closeDeleteModal()
+              }
+            }}
+          >
+            <div className="w-full max-w-md overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-[0_25px_80px_rgba(0,0,0,0.18)]">
+              {/* HEADER */}
+
+              <div className="flex items-center justify-between border-b border-gray-100 px-5 py-4">
+                <div className="flex items-center gap-3">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-red-50 text-red-600">
+                    <Trash2 className="h-5 w-5" />
+                  </div>
+
+                  <div>
+                    <h2 className="text-sm font-bold text-gray-900">
+                      Confirm Deletion
+                    </h2>
+
+                    <p className="text-xs text-gray-400">
+                      This action cannot be undone.
+                    </p>
+                  </div>
+                </div>
+
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  onClick={
+                    closeDeleteModal
+                  }
+                  disabled={
+                    isDeleting
+                  }
+                  className="h-8 w-8 rounded-lg text-gray-400 hover:bg-gray-100 hover:text-gray-700"
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
+
+              {/* CONTENT */}
+
+              <div className="p-5">
+                <p className="text-sm leading-relaxed text-gray-600">
+                  Are you sure you want to
+                  delete this{" "}
+                  <span className="font-semibold text-gray-900">
+                    {deleteTarget.type ===
+                    "lic"
+                      ? "LIC account"
+                      : "instructor"}
+                  </span>
+                  ?
+                </p>
+
+                <div className="mt-4 rounded-xl border border-red-100 bg-red-50 p-3">
+                  <p className="text-xs leading-relaxed text-red-700">
+                    Deleting this record will
+                    permanently remove it from
+                    the system.
+                  </p>
+                </div>
+              </div>
+
+              {/* FOOTER */}
+
+              <div className="flex flex-col-reverse gap-2 border-t border-gray-100 bg-gray-50/70 px-5 py-4 sm:flex-row sm:justify-end">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={
+                    closeDeleteModal
+                  }
+                  disabled={
+                    isDeleting
+                  }
+                  className="h-10 rounded-xl"
+                >
+                  Cancel
+                </Button>
+
+                <Button
+                  type="button"
+                  onClick={
+                    handleDelete
+                  }
+                  disabled={
+                    isDeleting
+                  }
+                  className="h-10 rounded-xl bg-red-600 px-5 font-semibold text-white hover:bg-red-700"
+                >
+                  {isDeleting ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  ) : (
+                    <Trash2 className="mr-2 h-4 w-4" />
+                  )}
+
+                  {isDeleting
+                    ? "Deleting..."
+                    : "Delete"}
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
     </div>
   )
 }

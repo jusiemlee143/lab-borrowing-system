@@ -305,6 +305,19 @@ export default function AdminDashboard() {
   const [activeSection, setActiveSection] =
     useState<AdminSection>("dashboard")
 
+  const [isSectionLoading, setIsSectionLoading] = useState(false)
+
+  const handleSectionChange = (section: AdminSection) => {
+    if (section === activeSection) return
+
+    setIsSectionLoading(true)
+    setActiveSection(section)
+
+    window.setTimeout(() => {
+      setIsSectionLoading(false)
+    }, 350)
+  }
+
   /* ==========================================================
      ACCOUNT DATA
   ========================================================== */
@@ -1220,7 +1233,7 @@ export default function AdminDashboard() {
             <button
               type="button"
               onClick={() =>
-                setActiveSection(
+                handleSectionChange(
                   "dashboard"
                 )
               }
@@ -1235,7 +1248,7 @@ export default function AdminDashboard() {
             <button
               type="button"
               onClick={() =>
-                setActiveSection(
+                handleSectionChange(
                   "borrowing"
                 )
               }
@@ -1250,7 +1263,7 @@ export default function AdminDashboard() {
             <button
               type="button"
               onClick={() =>
-                setActiveSection(
+                handleSectionChange(
                   "equipment"
                 )
               }
@@ -1271,7 +1284,7 @@ export default function AdminDashboard() {
             <button
               type="button"
               onClick={() =>
-                setActiveSection("users")
+                handleSectionChange("users")
               }
               className={sidebarButtonClass(
                 "users"
@@ -1284,7 +1297,7 @@ export default function AdminDashboard() {
             <button
               type="button"
               onClick={() =>
-                setActiveSection(
+                handleSectionChange(
                   "instructors"
                 )
               }
@@ -1432,7 +1445,16 @@ export default function AdminDashboard() {
 
         {/* CONTENT */}
 
-        <div className="flex-1 overflow-auto">
+        <div className="relative flex-1 overflow-auto">
+          {isSectionLoading && (
+            <div className="absolute inset-0 z-50 flex items-center justify-center bg-white/70 backdrop-blur-[1px]">
+              <div className="flex flex-col items-center gap-3 rounded-2xl border border-gray-100 bg-white px-7 py-6 shadow-lg">
+                <Loader2 className="h-7 w-7 animate-spin text-[#800000]" />
+                <span className="text-sm font-medium text-gray-600">Loading...</span>
+              </div>
+            </div>
+          )}
+
           <div className="mx-auto w-full max-w-[1500px] p-5 sm:p-7 lg:p-8">
 
             {/* ==================================================
@@ -1830,7 +1852,7 @@ export default function AdminDashboard() {
                             type="button"
                             variant="outline"
                             onClick={() =>
-                              setActiveSection(
+                              handleSectionChange(
                                 "equipment"
                               )
                             }

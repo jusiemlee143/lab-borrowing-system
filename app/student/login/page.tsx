@@ -26,6 +26,46 @@ import { Spinner } from "@/components/ui/spinner"
 import { Toaster, toast } from "sonner"
 
 // ============================================================
+// FORMAT STUDENT ID
+// ============================================================
+//
+// Required format:
+// XX-XXXX-XXX
+//
+// Example:
+// 113213233
+//       ↓
+// 11-3213-233
+//
+// The student only needs to type numbers.
+// The "-" characters are added automatically.
+// ============================================================
+
+function formatStudentId(value: string) {
+  // Remove anything that is not a number
+  const numbersOnly = value.replace(/\D/g, "")
+
+  // Maximum of 9 digits
+  const digits = numbersOnly.slice(0, 9)
+
+  // First part: XX
+  if (digits.length <= 2) {
+    return digits
+  }
+
+  // Second part: XXXX
+  if (digits.length <= 6) {
+    return `${digits.slice(0, 2)}-${digits.slice(2)}`
+  }
+
+  // Third part: XXX
+  return `${digits.slice(0, 2)}-${digits.slice(
+    2,
+    6
+  )}-${digits.slice(6)}`
+}
+
+// ============================================================
 // STUDENT LOGIN PAGE
 // ============================================================
 
@@ -64,7 +104,9 @@ export default function StudentLoginPage() {
   // ============================================================
 
   useEffect(() => {
-    const session = sessionStorage.getItem("studentSession")
+    const session = sessionStorage.getItem(
+      "studentSession"
+    )
 
     if (!session) return
 
@@ -83,131 +125,146 @@ export default function StudentLoginPage() {
   // LOGIN
   // ============================================================
 
-const handleLogin = async (
-  e: React.FormEvent<HTMLFormElement>
-) => {
-  e.preventDefault()
+  const handleLogin = async (
+    e: React.FormEvent<HTMLFormElement>
+  ) => {
+    e.preventDefault()
 
-  if (isLoggingIn) return
+    if (isLoggingIn) return
 
-  setLoginError("")
+    setLoginError("")
 
-  const studentId = loginId.trim()
-
-  // ============================================================
-  // VALIDATION
-  // ============================================================
-
-  if (!studentId || !loginPassword) {
-    setLoginError(
-      "Please enter your Student ID and Password."
-    )
-    return
-  }
-
-  setIsLoggingIn(true)
-
-  try {
-    // ==========================================================
-    // SEND LOGIN INFORMATION TO BACKEND
-    // ==========================================================
-
-    const response = await fetch("/api/auth/student-login", {
-      method: "POST",
-
-      headers: {
-        "Content-Type": "application/json",
-      },
-
-      // Allows the browser to receive/save the JWT cookie
-      credentials: "include",
-
-      body: JSON.stringify({
-        studentId: studentId,
-        password: loginPassword,
-      }),
-    })
+    const studentId = loginId.trim()
 
     // ==========================================================
-    // GET BACKEND RESPONSE
+    // VALIDATION
     // ==========================================================
 
-    const data = await response.json()
-
-    console.log("=================================")
-    console.log("STUDENT LOGIN RESPONSE")
-    console.log("Status:", response.status)
-    console.log("Data:", data)
-    console.log("=================================")
-
-    // ==========================================================
-    // LOGIN FAILED
-    // ==========================================================
-
-    if (!response.ok) {
+    if (!studentId || !loginPassword) {
       setLoginError(
-        data.message ||
-          "Invalid Student ID or Password."
+        "Please enter your Student ID and Password."
       )
-
       return
     }
 
-    // ==========================================================
-    // LOGIN SUCCESSFUL
-    // ==========================================================
+    // Required format: XX-XXXX-XXX
+    const studentIdPattern =
+      /^\d{2}-\d{4}-\d{3}$/
 
-    console.log("✅ Student login successful")
+    if (!studentIdPattern.test(studentId)) {
+      setLoginError(
+        "Please enter a valid Student ID."
+      )
+      return
+    }
 
-    // ==========================================================
-    // CREATE FRONTEND SESSION
-    // ==========================================================
+    setIsLoggingIn(true)
 
-    sessionStorage.setItem(
-      "studentSession",
-      JSON.stringify({
-        loggedIn: true,
-        studentId: data.studentId,
-        userId: data.userId,
-        fullName: data.fullName,
-        email: data.email,
-        role: data.role,
-      })
-    )
+    try {
+      // ========================================================
+      // SEND LOGIN INFORMATION TO BACKEND
+      // ========================================================
 
-    // ==========================================================
-    // SUCCESS MESSAGE
-    // ==========================================================
+      const response = await fetch(
+        "/api/auth/student-login",
+        {
+          method: "POST",
 
-    toast.success("Login successful!")
+          headers: {
+            "Content-Type": "application/json",
+          },
 
-    // ==========================================================
-    // GO TO STUDENT DASHBOARD
-    // ==========================================================
+          credentials: "include",
 
-    router.replace("/student/dashboard")
+          body: JSON.stringify({
+            studentId: studentId,
+            password: loginPassword,
+          }),
+        }
+      )
 
-  } catch (error) {
-    console.error(
-      "Student login error:",
-      error
-    )
+      // ========================================================
+      // GET BACKEND RESPONSE
+      // ========================================================
 
-    setLoginError(
-      "Unable to connect to the server. Please try again."
-    )
+      const data = await response.json()
 
-  } finally {
-    setIsLoggingIn(false)
+      console.log("=================================")
+      console.log("STUDENT LOGIN RESPONSE")
+      console.log("Status:", response.status)
+      console.log("Data:", data)
+      console.log("=================================")
+
+      // ========================================================
+      // LOGIN FAILED
+      // ========================================================
+
+      if (!response.ok) {
+        setLoginError(
+          data.message ||
+            "Invalid Student ID or Password."
+        )
+
+        return
+      }
+
+      // ========================================================
+      // LOGIN SUCCESSFUL
+      // ========================================================
+
+      console.log(
+        "✅ Student login successful"
+      )
+
+      // ========================================================
+      // CREATE FRONTEND SESSION
+      // ========================================================
+
+      sessionStorage.setItem(
+        "studentSession",
+        JSON.stringify({
+          loggedIn: true,
+          studentId: data.studentId,
+          userId: data.userId,
+          fullName: data.fullName,
+          email: data.email,
+          role: data.role,
+        })
+      )
+
+      // ========================================================
+      // SUCCESS MESSAGE
+      // ========================================================
+
+      toast.success("Login successful!")
+
+      // ========================================================
+      // GO TO STUDENT DASHBOARD
+      // ========================================================
+
+      router.replace("/student/dashboard")
+    } catch (error) {
+      console.error(
+        "Student login error:",
+        error
+      )
+
+      setLoginError(
+        "Unable to connect to the server. Please try again."
+      )
+    } finally {
+      setIsLoggingIn(false)
+    }
   }
-}
 
   // ============================================================
   // EXIT
   // ============================================================
 
   const handleExit = () => {
-    sessionStorage.removeItem("studentSession")
+    sessionStorage.removeItem(
+      "studentSession"
+    )
 
     router.push("/")
   }
@@ -578,10 +635,16 @@ const handleLogin = async (
                       <Input
                         id="student-id"
                         type="text"
-                        placeholder="Enter your Student ID"
+                        inputMode="numeric"
+                        placeholder="11-3213-233"
                         value={loginId}
                         onChange={(e) => {
-                          setLoginId(e.target.value)
+                          const formattedId =
+                            formatStudentId(
+                              e.target.value
+                            )
+
+                          setLoginId(formattedId)
                           setLoginError("")
                         }}
                         className="
@@ -591,6 +654,7 @@ const handleLogin = async (
                           bg-gray-50/70
                           pl-4
                           text-base
+                          tracking-wide
                           focus:border-[#800000]
                           focus:ring-[#800000]/20
                         "
@@ -598,6 +662,11 @@ const handleLogin = async (
                         autoComplete="username"
                         autoFocus
                       />
+
+                      <p className="text-xs text-gray-400">
+                        Enter the numbers only. The dashes
+                        will be added automatically.
+                      </p>
                     </div>
 
                     {/* Password */}
@@ -626,7 +695,9 @@ const handleLogin = async (
                           placeholder="Enter your password"
                           value={loginPassword}
                           onChange={(e) => {
-                            setLoginPassword(e.target.value)
+                            setLoginPassword(
+                              e.target.value
+                            )
                             setLoginError("")
                           }}
                           className="

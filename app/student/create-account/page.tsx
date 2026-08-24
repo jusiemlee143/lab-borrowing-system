@@ -39,6 +39,7 @@ export default function CreateAccountPage() {
 
   const [studentId, setStudentId] = useState("")
   const [fullName, setFullName] = useState("")
+  const [course, setCourse] = useState("")
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [confirmPassword, setConfirmPassword] = useState("")
@@ -75,11 +76,13 @@ export default function CreateAccountPage() {
 
     const trimmedStudentId = studentId.trim()
     const trimmedFullName = fullName.trim()
+    const trimmedCourse = course.trim()
     const trimmedEmail = email.trim()
 
     if (
       !trimmedStudentId ||
       !trimmedFullName ||
+      !trimmedCourse ||
       !trimmedEmail ||
       !password ||
       !confirmPassword
@@ -119,6 +122,7 @@ export default function CreateAccountPage() {
           body: JSON.stringify({
             studentId: trimmedStudentId,
             fullName: trimmedFullName,
+            course: trimmedCourse,
             email: trimmedEmail,
             password,
           }),
@@ -632,6 +636,48 @@ export default function CreateAccountPage() {
                     </div>
 
                     {/* ==================================================
+    COURSE
+================================================== */}
+
+                  <div className="space-y-1">
+                    <label
+                      htmlFor="course"
+                      className="flex items-center gap-2 text-xs font-semibold text-gray-700 sm:text-sm"
+                    >
+                      <User
+                        size={14}
+                        className="text-[#800000]"
+                      />
+
+                      Course
+                    </label>
+
+                    <Input
+                      id="course"
+                      type="text"
+                      placeholder="Enter your course"
+                      value={course}
+                      onChange={(e) => {
+                        setCourse(e.target.value)
+                        setError("")
+                      }}
+                      className="
+                        h-9
+                        rounded-lg
+                        border-gray-200
+                        bg-gray-50/70
+                        px-3
+                        text-sm
+                        focus:border-[#800000]
+                        focus:ring-[#800000]/20
+                        sm:h-10
+                      "
+                      disabled={loading}
+                      autoComplete="organization"
+                    />
+                  </div>
+
+                    {/* ==================================================
                         EMAIL
                     ================================================== */}
 
@@ -911,6 +957,7 @@ export default function CreateAccountPage() {
                         loading ||
                         !studentId.trim() ||
                         !fullName.trim() ||
+                        !course.trim() ||
                         !email.trim() ||
                         !password ||
                         !confirmPassword

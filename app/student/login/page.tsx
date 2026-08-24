@@ -98,11 +98,130 @@ const handleLogin = async (
   // VALIDATION
   // ============================================================
 
+<<<<<<< Updated upstream
   if (!studentId || !loginPassword) {
     setLoginError(
       "Please enter your Student ID and Password."
     )
     return
+=======
+    if (!studentId || !loginPassword) {
+      setLoginError(
+        "Please enter your Student ID and Password."
+      )
+      return
+    }
+
+    // Required format: XX-XXXX-XXX
+    const studentIdPattern =
+      /^\d{2}-\d{4}-\d{3}$/
+
+    if (!studentIdPattern.test(studentId)) {
+      setLoginError(
+        "Please enter a valid Student ID."
+      )
+      return
+    }
+
+    setIsLoggingIn(true)
+
+    try {
+      // ========================================================
+      // SEND LOGIN INFORMATION TO BACKEND
+      // ========================================================
+
+      const response = await fetch(
+        "/api/auth/student-login",
+        {
+          method: "POST",
+
+          headers: {
+            "Content-Type": "application/json",
+          },
+
+          credentials: "include",
+
+          body: JSON.stringify({
+            studentId: studentId,
+            password: loginPassword,
+          }),
+        }
+      )
+
+      // ========================================================
+      // GET BACKEND RESPONSE
+      // ========================================================
+
+      const data = await response.json()
+
+      console.log("=================================")
+      console.log("STUDENT LOGIN RESPONSE")
+      console.log("Status:", response.status)
+      console.log("Data:", data)
+      console.log("=================================")
+
+      // ========================================================
+      // LOGIN FAILED
+      // ========================================================
+
+      if (!response.ok) {
+        setLoginError(
+          data.message ||
+            "Invalid Student ID or Password."
+        )
+
+        return
+      }
+
+      // ========================================================
+      // LOGIN SUCCESSFUL
+      // ========================================================
+
+      console.log(
+        "✅ Student login successful"
+      )
+
+      // ========================================================
+      // CREATE FRONTEND SESSION
+      // ========================================================
+
+      sessionStorage.setItem(
+        "studentSession",
+        JSON.stringify({
+          loggedIn: true,
+          studentId: data.studentId,
+          userId: data.userId,
+          fullName: data.fullName,
+          email: data.email,
+          course: data.course,
+          role: data.role,
+        })
+      )
+
+      // ========================================================
+      // SUCCESS MESSAGE
+      // ========================================================
+
+      toast.success("Login successful!")
+
+      // ========================================================
+      // GO TO STUDENT DASHBOARD
+      // ========================================================
+
+      router.replace("/student/dashboard")
+    } catch (error) {
+      console.error(
+        "Student login error:",
+        error
+      )
+
+      setLoginError(
+        "Unable to connect to the server. Please try again."
+      )
+    } finally {
+      setIsLoggingIn(false)
+    }
+>>>>>>> Stashed changes
   }
 
   setIsLoggingIn(true)

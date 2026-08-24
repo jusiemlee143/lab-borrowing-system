@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
+
 import {
   Plus,
   Trash2,
@@ -34,6 +35,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 
+
 // ============================================================
 // TYPES
 // ============================================================
@@ -57,6 +59,19 @@ type Teacher = {
   email: string
 }
 
+type StudentSession = {
+  loggedIn?: boolean
+  studentId?: string
+  fullName?: string
+  name?: string
+  email?: string
+  course?: string
+  studentCourse?: string
+  userId?: string
+  role?: string
+}
+
+
 // ============================================================
 // MAIN PAGE
 // ============================================================
@@ -64,23 +79,54 @@ type Teacher = {
 export default function BorrowerSlipPage() {
   const router = useRouter()
 
+
+  // ==========================================================
+  // STUDENT SESSION
+  // ==========================================================
+
+  const [studentSession, setStudentSession] =
+    useState<StudentSession | null>(null)
+
+  const [checkingSession, setCheckingSession] =
+    useState(true)
+
+
   // ==========================================================
   // STUDENT INFORMATION
   // ==========================================================
 
-  const [date, setDate] = useState("")
-  const [name, setName] = useState("")
-  const [section, setSection] = useState("")
-  const [groupNumber, setGroupNumber] = useState("")
-  const [activityTitle, setActivityTitle] = useState("")
-  const [instructor, setInstructor] = useState("")
+  const [studentId, setStudentId] =
+    useState("")
+
+  const [studentEmail, setStudentEmail] =
+    useState("")
+
+  const [studentCourse, setStudentCourse] =
+    useState("")
+
+  const [date, setDate] =
+    useState("")
+
+  const [name, setName] =
+    useState("")
+
+  const [section, setSection] =
+    useState("")
+
+  const [groupNumber, setGroupNumber] =
+    useState("")
+
+  const [activityTitle, setActivityTitle] =
+    useState("")
+
+  const [instructor, setInstructor] =
+    useState("")
+
 
   // ==========================================================
   // MEMBERS
   // ==========================================================
 
-  // Start with 4 member slots instead of only one.
-  // Students can immediately type into multiple fields.
   const [members, setMembers] = useState<string[]>([
     "",
     "",
@@ -88,39 +134,136 @@ export default function BorrowerSlipPage() {
     "",
   ])
 
+
   // ==========================================================
   // TOOLS
   // ==========================================================
 
-  const [cart, setCart] = useState<CartItem[]>([])
-  const [tools, setTools] = useState<Tool[]>([])
+  const [cart, setCart] =
+    useState<CartItem[]>([])
+
+  const [tools, setTools] =
+    useState<Tool[]>([])
+
 
   // ==========================================================
   // TEACHERS
   // ==========================================================
 
-  const [teachers, setTeachers] = useState<Teacher[]>([])
+  const [teachers, setTeachers] =
+    useState<Teacher[]>([])
+
 
   // ==========================================================
   // LOADING
   // ==========================================================
 
-  const [loading, setLoading] = useState(true)
+  const [loading, setLoading] =
+    useState(true)
+
 
   // ==========================================================
   // SUBMITTING
   // ==========================================================
 
-  const [submitting, setSubmitting] = useState(false)
+  const [submitting, setSubmitting] =
+    useState(false)
+
+
+  // ==========================================================
+  // CHECK STUDENT SESSION
+  // ==========================================================
+
+  useEffect(() => {
+    try {
+      const storedSession =
+        sessionStorage.getItem("studentSession")
+
+      if (!storedSession) {
+        router.replace("/student/login")
+        return
+      }
+
+      const parsedStudent: StudentSession =
+        JSON.parse(storedSession)
+
+      if (
+        parsedStudent.loggedIn === false ||
+        !parsedStudent.studentId
+      ) {
+        router.replace("/student/login")
+        return
+      }
+
+      setStudentSession(parsedStudent)
+
+      // ------------------------------------------------------
+      // STUDENT ID
+      // ------------------------------------------------------
+
+      setStudentId(
+        parsedStudent.studentId || ""
+      )
+
+      // ------------------------------------------------------
+      // NAME
+      // ------------------------------------------------------
+
+      const studentName =
+        parsedStudent.fullName ||
+        parsedStudent.name ||
+        ""
+
+      setName(studentName)
+
+      // ------------------------------------------------------
+      // EMAIL
+      // ------------------------------------------------------
+
+      setStudentEmail(
+        parsedStudent.email || ""
+      )
+
+      // ------------------------------------------------------
+      // COURSE
+      // ------------------------------------------------------
+
+      setStudentCourse(
+        parsedStudent.course ||
+        parsedStudent.studentCourse ||
+        ""
+      )
+
+    } catch (error) {
+      console.error(
+        "Invalid student session:",
+        error
+      )
+
+      sessionStorage.removeItem(
+        "studentSession"
+      )
+
+      router.replace("/student/login")
+    } finally {
+      setCheckingSession(false)
+    }
+  }, [router])
+
 
   // ==========================================================
   // AUTO DATE
   // ==========================================================
 
   useEffect(() => {
-    const today = new Date().toISOString().split("T")[0]
+    const today =
+      new Date()
+        .toISOString()
+        .split("T")[0]
+
     setDate(today)
   }, [])
+
 
   // ==========================================================
   // FETCH TEACHERS
@@ -129,18 +272,31 @@ export default function BorrowerSlipPage() {
   useEffect(() => {
     const fetchTeachers = async () => {
       try {
-        const res = await fetch("/api/admin/teachers")
+        const res = await fetch(
+          "/api/admin/teachers"
+        )
+
         const data = await res.json()
 
-        setTeachers(Array.isArray(data) ? data : [])
+        setTeachers(
+          Array.isArray(data)
+            ? data
+            : []
+        )
+
       } catch (err) {
-        console.error("Failed to fetch teachers:", err)
+        console.error(
+          "Failed to fetch teachers:",
+          err
+        )
+
         setTeachers([])
       }
     }
 
     fetchTeachers()
   }, [])
+
 
   // ==========================================================
   // FETCH TOOLS
@@ -151,25 +307,42 @@ export default function BorrowerSlipPage() {
       try {
         setLoading(true)
 
-        const res = await fetch("/api/lab-in-charge/tools")
+        const res = await fetch(
+          "/api/lab-in-charge/tools"
+        )
+
         const data = await res.json()
 
-        const normalized: Tool[] = Array.isArray(data)
-          ? data.map((t: any) => ({
-              _id: t._id || t.id,
-              name: t.name,
-              quantity: t.quantity,
-              status:
-                t.quantity === 0
-                  ? "unavailable"
-                  : "available",
-            }))
-          : []
+        const normalized: Tool[] =
+          Array.isArray(data)
+            ? data.map((t: any) => ({
+                _id:
+                  t._id ||
+                  t.id,
+
+                name:
+                  t.name,
+
+                quantity:
+                  Number(t.quantity) || 0,
+
+                status:
+                  Number(t.quantity) === 0
+                    ? "unavailable"
+                    : "available",
+              }))
+            : []
 
         setTools(normalized)
+
       } catch (err) {
-        console.error("Failed to fetch tools:", err)
+        console.error(
+          "Failed to fetch tools:",
+          err
+        )
+
         setTools([])
+
       } finally {
         setLoading(false)
       }
@@ -178,54 +351,76 @@ export default function BorrowerSlipPage() {
     fetchTools()
   }, [])
 
-  // ============================================================
+
+  // ==========================================================
   // AVAILABLE TOOLS
-  // ============================================================
+  // ==========================================================
 
-  const availableTools = tools.map((tool) => {
-    const inCart = cart.find(
-      (item) => item.id === tool._id
-    )
+  const availableTools =
+    tools.map((tool) => {
 
-    return {
-      ...tool,
-      displayQuantity:
-        tool.quantity - (inCart ? inCart.quantity : 0),
-    }
-  })
+      const inCart =
+        cart.find(
+          (item) =>
+            item.id === tool._id
+        )
 
-  // ============================================================
+      return {
+        ...tool,
+
+        displayQuantity:
+          tool.quantity -
+          (inCart
+            ? inCart.quantity
+            : 0),
+      }
+    })
+
+
+  // ==========================================================
   // ADD TOOL
-  // ============================================================
+  // ==========================================================
 
   const addToCart = (tool: Tool) => {
-    const inCart = cart.find(
-      (item) => item.id === tool._id
-    )
 
-    const currentQty = inCart
-      ? inCart.quantity
-      : 0
+    const inCart =
+      cart.find(
+        (item) =>
+          item.id === tool._id
+      )
 
-    if (currentQty + 1 > tool.quantity) {
+    const currentQty =
+      inCart
+        ? inCart.quantity
+        : 0
+
+    if (
+      currentQty + 1 >
+      tool.quantity
+    ) {
       alert("Out of stock!")
       return
     }
 
     setCart((prev) => {
+
       if (inCart) {
-        return prev.map((item) =>
-          item.id === tool._id
-            ? {
-                ...item,
-                quantity: item.quantity + 1,
-              }
-            : item
+
+        return prev.map(
+          (item) =>
+            item.id === tool._id
+              ? {
+                  ...item,
+                  quantity:
+                    item.quantity + 1,
+                }
+              : item
         )
       }
 
       return [
         ...prev,
+
         {
           id: tool._id,
           name: tool.name,
@@ -235,76 +430,109 @@ export default function BorrowerSlipPage() {
     })
   }
 
-  // ============================================================
+
+  // ==========================================================
   // UPDATE TOOL QUANTITY
-  // ============================================================
+  // ==========================================================
 
   const updateQty = (
     id: string,
     qty: number
   ) => {
-    if (qty <= 0) return
 
-    const tool = tools.find(
-      (item) => item._id === id
-    )
+    if (qty <= 0) {
+      return
+    }
 
-    if (!tool) return
+    const tool =
+      tools.find(
+        (item) =>
+          item._id === id
+      )
 
-    if (qty > tool.quantity) {
+    if (!tool) {
+      return
+    }
+
+    if (
+      qty >
+      tool.quantity
+    ) {
       alert("Out of stock!")
       return
     }
 
     setCart((prev) =>
-      prev.map((item) =>
-        item.id === id
-          ? {
-              ...item,
-              quantity: qty,
-            }
-          : item
+      prev.map(
+        (item) =>
+          item.id === id
+            ? {
+                ...item,
+                quantity: qty,
+              }
+            : item
       )
     )
   }
 
-  // ============================================================
-  // REMOVE TOOL
-  // ============================================================
 
-  const removeItem = (id: string) => {
+  // ==========================================================
+  // REMOVE TOOL
+  // ==========================================================
+
+  const removeItem = (
+    id: string
+  ) => {
+
     setCart((prev) =>
-      prev.filter((item) => item.id !== id)
+      prev.filter(
+        (item) =>
+          item.id !== id
+      )
     )
   }
 
-  // ============================================================
+
+  // ==========================================================
   // MEMBERS
-  // ============================================================
+  // ==========================================================
 
   const updateMember = (
     index: number,
     value: string
   ) => {
+
     setMembers((prev) => {
-      const updated = [...prev]
+
+      const updated = [
+        ...prev,
+      ]
+
       updated[index] = value
+
       return updated
     })
   }
 
+
   const addMember = () => {
+
     setMembers((prev) => [
       ...prev,
       "",
     ])
   }
 
+
   const removeMember = (
     index: number
   ) => {
-    // Keep at least one member field.
-    if (members.length === 1) return
+
+    if (
+      members.length === 1
+    ) {
+      return
+    }
 
     setMembers((prev) =>
       prev.filter(
@@ -314,117 +542,332 @@ export default function BorrowerSlipPage() {
     )
   }
 
-  // ============================================================
+
+  // ==========================================================
   // SUBMIT
-  // ============================================================
+  // ==========================================================
 
   const handleSubmit = async () => {
-    if (
-      !name ||
-      !section ||
-      !groupNumber ||
-      !activityTitle ||
-      !instructor
-    ) {
+
+    // --------------------------------------------------------
+    // CHECK LOGIN
+    // --------------------------------------------------------
+
+    if (!studentId) {
       alert(
-        "Please complete all required student information."
+        "Your student session is invalid. Please login again."
+      )
+
+      router.replace(
+        "/student/login"
+      )
+
+      return
+    }
+
+
+    // --------------------------------------------------------
+    // VALIDATE STUDENT DATA
+    // --------------------------------------------------------
+
+    if (!name.trim()) {
+      alert(
+        "Student name is missing."
       )
       return
     }
 
-    if (cart.length === 0) {
-      alert("Please select at least one tool.")
+    if (!section) {
+      alert(
+        "Please select your section."
+      )
       return
     }
+
+    if (!groupNumber.trim()) {
+      alert(
+        "Please enter your group number."
+      )
+      return
+    }
+
+    if (!activityTitle.trim()) {
+      alert(
+        "Please enter the activity title."
+      )
+      return
+    }
+
+    if (!instructor) {
+      alert(
+        "Please select your instructor."
+      )
+      return
+    }
+
+
+    // --------------------------------------------------------
+    // VALIDATE CART
+    // --------------------------------------------------------
+
+    if (
+      cart.length === 0
+    ) {
+      alert(
+        "Please select at least one tool."
+      )
+
+      return
+    }
+
 
     setSubmitting(true)
 
-    const cleanedMembers = members
-      .map((member) => member.trim())
-      .filter(Boolean)
+
+    // --------------------------------------------------------
+    // CLEAN MEMBERS
+    // --------------------------------------------------------
+
+    const cleanedMembers =
+      members
+        .map(
+          (member) =>
+            member.trim()
+        )
+        .filter(Boolean)
+
+
+    // --------------------------------------------------------
+    // REQUEST PAYLOAD
+    // --------------------------------------------------------
 
     const payload = {
-      name,
-      section,
-      groupNumber,
-      date,
-      activityTitle,
+
+      // Student identity
+      studentId:
+        studentId.trim(),
+
+      studentEmail:
+        studentEmail
+          .trim()
+          .toLowerCase(),
+
+      studentCourse:
+        studentCourse.trim(),
+
+      // Borrower slip information
+      name:
+        name.trim(),
+
+      section:
+        section.trim(),
+
+      groupNumber:
+        String(groupNumber).trim(),
+
+      date:
+        date.trim(),
+
+      activityTitle:
+        activityTitle.trim(),
+
       instructor,
-      members: cleanedMembers,
+
+      members:
+        cleanedMembers,
+
       cart,
     }
 
+
+    console.log(
+      "Submitting borrower request:",
+      payload
+    )
+
+
+    // --------------------------------------------------------
+    // SEND TO API
+    // --------------------------------------------------------
+
     try {
-      const res = await fetch(
-        "/api/student/borrow",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type":
-              "application/json",
-          },
-          body: JSON.stringify(payload),
-        }
-      )
+
+      const res =
+        await fetch(
+          "/api/student/borrow",
+          {
+            method: "POST",
+
+            headers: {
+              "Content-Type":
+                "application/json",
+            },
+
+            body:
+              JSON.stringify(
+                payload
+              ),
+          }
+        )
+
+
+      const data =
+        await res.json()
+
 
       if (!res.ok) {
+
         throw new Error(
-          "Submission failed"
+          data?.message ||
+          "Submission failed."
         )
       }
+
+
+      console.log(
+        "Borrow request created:",
+        data
+      )
+
 
       alert(
         "Borrower slip submitted successfully!"
       )
 
+
+      // Clear cart
       setCart([])
 
-      router.push("/student/dashboard")
+
+      // Go back to dashboard
+      router.push(
+        "/student/dashboard"
+      )
+
     } catch (err) {
-      console.error(err)
+
+      console.error(
+        "Borrower slip submission error:",
+        err
+      )
 
       alert(
-        "Failed to submit borrower slip. Please try again."
+        err instanceof Error
+          ? err.message
+          : "Failed to submit borrower slip. Please try again."
       )
+
     } finally {
+
       setSubmitting(false)
     }
   }
 
-  // ============================================================
-  // LOADING
-  // ============================================================
 
-  if (loading) {
+  // ==========================================================
+  // SESSION LOADING
+  // ==========================================================
+
+  if (checkingSession) {
+
     return (
       <div className="min-h-screen bg-[#fafafa] flex items-center justify-center">
+
         <div className="flex flex-col items-center gap-4">
 
           <div className="w-12 h-12 rounded-xl bg-[#800000] flex items-center justify-center shadow-lg">
-            <ClipboardList className="w-6 h-6 text-[#FFD700] animate-pulse" />
+
+            <ClipboardList
+              className="
+                w-6
+                h-6
+                text-[#FFD700]
+                animate-pulse
+              "
+            />
+
           </div>
 
-          <div className="w-8 h-8 border-4 border-gray-200 border-t-[#800000] rounded-full animate-spin" />
+          <div
+            className="
+              w-8
+              h-8
+              border-4
+              border-gray-200
+              border-t-[#800000]
+              rounded-full
+              animate-spin
+            "
+          />
+
+          <p className="text-sm text-gray-500">
+            Checking student session...
+          </p>
+
+        </div>
+
+      </div>
+    )
+  }
+
+
+  // ==========================================================
+  // PAGE LOADING
+  // ==========================================================
+
+  if (loading) {
+
+    return (
+      <div className="min-h-screen bg-[#fafafa] flex items-center justify-center">
+
+        <div className="flex flex-col items-center gap-4">
+
+          <div className="w-12 h-12 rounded-xl bg-[#800000] flex items-center justify-center shadow-lg">
+
+            <ClipboardList
+              className="
+                w-6
+                h-6
+                text-[#FFD700]
+                animate-pulse
+              "
+            />
+
+          </div>
+
+          <div
+            className="
+              w-8
+              h-8
+              border-4
+              border-gray-200
+              border-t-[#800000]
+              rounded-full
+              animate-spin
+            "
+          />
 
           <p className="text-sm text-gray-500">
             Loading borrower slip...
           </p>
 
         </div>
+
       </div>
     )
   }
 
-  // ============================================================
+
+  // ==========================================================
   // PAGE
-  // ============================================================
+  // ==========================================================
 
   return (
     <div className="min-h-screen bg-[#fafafa] text-gray-800 relative overflow-x-hidden">
 
-      {/* ====================================================== */}
-      {/* BACKGROUND */}
-      {/* ====================================================== */}
+      {/* ======================================================
+          BACKGROUND
+      ====================================================== */}
 
       <div
         className="fixed inset-0 pointer-events-none opacity-[0.025]"
@@ -437,9 +880,10 @@ export default function BorrowerSlipPage() {
         }}
       />
 
-      {/* ====================================================== */}
-      {/* HEADER */}
-      {/* ====================================================== */}
+
+      {/* ======================================================
+          HEADER
+      ====================================================== */}
 
       <header className="sticky top-0 z-50 bg-white/95 backdrop-blur-md border-b border-[#800000]/10 shadow-sm">
 
@@ -485,20 +929,25 @@ export default function BorrowerSlipPage() {
                 <img
                   src="/logo/OfficialLogo.png"
                   alt="Lab Borrowing System Logo"
-                  className="relative z-10 w-10 h-10 sm:w-11 sm:h-11 object-contain"
+                  className="
+                    relative
+                    z-10
+                    w-10
+                    h-10
+                    sm:w-11
+                    sm:h-11
+                    object-contain
+                  "
                 />
 
               </div>
 
+
               <div className="min-w-0">
 
-                <div className="flex items-center gap-2">
-
-                  <h1 className="text-base sm:text-xl font-bold text-[#800000] truncate">
-                    Student Borrower Slip
-                  </h1>
-
-                </div>
+                <h1 className="text-base sm:text-xl font-bold text-[#800000] truncate">
+                  Student Borrower Slip
+                </h1>
 
                 <p className="text-xs sm:text-sm text-gray-500 truncate">
                   Laboratory Tool Borrowing Request
@@ -508,16 +957,20 @@ export default function BorrowerSlipPage() {
 
             </div>
 
+
             {/* RIGHT */}
 
             <Button
               variant="outline"
               onClick={() =>
-                router.push("/student/dashboard")
+                router.push(
+                  "/student/dashboard"
+                )
               }
               className="
                 h-9
-                px-3 sm:px-4
+                px-3
+                sm:px-4
                 rounded-lg
                 border-[#800000]/20
                 text-[#800000]
@@ -526,11 +979,13 @@ export default function BorrowerSlipPage() {
                 shrink-0
               "
             >
+
               <LogOut className="w-4 h-4" />
 
               <span className="hidden sm:inline">
                 Exit
               </span>
+
             </Button>
 
           </div>
@@ -541,15 +996,17 @@ export default function BorrowerSlipPage() {
 
       </header>
 
-      {/* ====================================================== */}
-      {/* MAIN */}
-      {/* ====================================================== */}
+
+      {/* ======================================================
+          MAIN
+      ====================================================== */}
 
       <main className="relative max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 py-7">
 
-        {/* ==================================================== */}
-        {/* PAGE INTRO */}
-        {/* ==================================================== */}
+
+        {/* ====================================================
+            INTRO
+        ==================================================== */}
 
         <section className="mb-7">
 
@@ -585,9 +1042,10 @@ export default function BorrowerSlipPage() {
 
         </section>
 
-        {/* ==================================================== */}
-        {/* STUDENT INFORMATION */}
-        {/* ==================================================== */}
+
+        {/* ====================================================
+            STUDENT INFORMATION
+        ==================================================== */}
 
         <Card className="bg-white border border-gray-200 rounded-2xl shadow-sm overflow-hidden mb-6">
 
@@ -596,7 +1054,9 @@ export default function BorrowerSlipPage() {
             <div className="flex items-center gap-3">
 
               <div className="w-10 h-10 rounded-xl bg-[#800000]/5 text-[#800000] flex items-center justify-center">
+
                 <UserRound className="w-5 h-5" />
+
               </div>
 
               <div>
@@ -606,7 +1066,7 @@ export default function BorrowerSlipPage() {
                 </CardTitle>
 
                 <p className="text-sm text-gray-500 mt-0.5">
-                  Enter the details for this borrowing request.
+                  Your account information is automatically used for this request.
                 </p>
 
               </div>
@@ -615,11 +1075,13 @@ export default function BorrowerSlipPage() {
 
           </CardHeader>
 
+
           <CardContent className="p-5 sm:p-6">
 
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
 
-              {/* NAME */}
+
+              {/* STUDENT NAME */}
 
               <div className="lg:col-span-2">
 
@@ -628,15 +1090,70 @@ export default function BorrowerSlipPage() {
                 </label>
 
                 <Input
-                  placeholder="Enter your full name"
                   value={name}
-                  onChange={(e) =>
-                    setName(e.target.value)
-                  }
-                  className="h-10 bg-white"
+                  disabled
+                  className="h-10 bg-gray-50"
                 />
 
               </div>
+
+
+              {/* STUDENT ID */}
+
+              <div>
+
+                <label className="block text-xs font-semibold text-gray-600 mb-1.5">
+                  Student ID
+                </label>
+
+                <Input
+                  value={studentId}
+                  disabled
+                  className="h-10 bg-gray-50"
+                />
+
+              </div>
+
+
+              {/* COURSE */}
+
+              <div>
+
+                <label className="block text-xs font-semibold text-gray-600 mb-1.5">
+                  Course
+                </label>
+
+                <Input
+                  value={
+                    studentCourse ||
+                    "N/A"
+                  }
+                  disabled
+                  className="h-10 bg-gray-50"
+                />
+
+              </div>
+
+
+              {/* EMAIL */}
+
+              <div className="lg:col-span-2">
+
+                <label className="block text-xs font-semibold text-gray-600 mb-1.5">
+                  Email
+                </label>
+
+                <Input
+                  value={
+                    studentEmail ||
+                    "N/A"
+                  }
+                  disabled
+                  className="h-10 bg-gray-50"
+                />
+
+              </div>
+
 
               {/* SECTION */}
 
@@ -648,11 +1165,15 @@ export default function BorrowerSlipPage() {
 
                 <Select
                   value={section}
-                  onValueChange={setSection}
+                  onValueChange={
+                    setSection
+                  }
                 >
 
                   <SelectTrigger className="h-10">
+
                     <SelectValue placeholder="Select section" />
+
                   </SelectTrigger>
 
                   <SelectContent>
@@ -675,6 +1196,7 @@ export default function BorrowerSlipPage() {
 
               </div>
 
+
               {/* GROUP */}
 
               <div>
@@ -687,7 +1209,9 @@ export default function BorrowerSlipPage() {
                   type="number"
                   min="1"
                   placeholder="Group #"
-                  value={groupNumber}
+                  value={
+                    groupNumber
+                  }
                   onChange={(e) =>
                     setGroupNumber(
                       e.target.value
@@ -697,6 +1221,7 @@ export default function BorrowerSlipPage() {
                 />
 
               </div>
+
 
               {/* DATE */}
 
@@ -708,7 +1233,17 @@ export default function BorrowerSlipPage() {
 
                 <div className="relative">
 
-                  <CalendarDays className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                  <CalendarDays
+                    className="
+                      absolute
+                      left-3
+                      top-1/2
+                      -translate-y-1/2
+                      w-4
+                      h-4
+                      text-gray-400
+                    "
+                  />
 
                   <Input
                     type="date"
@@ -721,6 +1256,7 @@ export default function BorrowerSlipPage() {
 
               </div>
 
+
               {/* ACTIVITY */}
 
               <div className="sm:col-span-2 lg:col-span-3">
@@ -731,7 +1267,9 @@ export default function BorrowerSlipPage() {
 
                 <Input
                   placeholder="Enter laboratory activity title"
-                  value={activityTitle}
+                  value={
+                    activityTitle
+                  }
                   onChange={(e) =>
                     setActivityTitle(
                       e.target.value
@@ -748,9 +1286,10 @@ export default function BorrowerSlipPage() {
 
         </Card>
 
-        {/* ==================================================== */}
-        {/* AVAILABLE TOOLS */}
-        {/* ==================================================== */}
+
+        {/* ====================================================
+            AVAILABLE TOOLS
+        ==================================================== */}
 
         <Card className="bg-white border border-gray-200 rounded-2xl shadow-sm overflow-hidden mb-6">
 
@@ -759,7 +1298,9 @@ export default function BorrowerSlipPage() {
             <div className="flex items-center gap-3">
 
               <div className="w-10 h-10 rounded-xl bg-[#800000]/5 text-[#800000] flex items-center justify-center">
+
                 <Package className="w-5 h-5" />
+
               </div>
 
               <div>
@@ -777,6 +1318,7 @@ export default function BorrowerSlipPage() {
             </div>
 
           </CardHeader>
+
 
           <CardContent className="p-5 sm:p-6">
 
@@ -800,7 +1342,9 @@ export default function BorrowerSlipPage() {
                   (tool) => (
 
                     <div
-                      key={tool._id}
+                      key={
+                        tool._id
+                      }
                       className="
                         group
                         border
@@ -846,10 +1390,13 @@ export default function BorrowerSlipPage() {
 
                       </div>
 
+
                       <Button
                         size="sm"
                         onClick={() =>
-                          addToCart(tool)
+                          addToCart(
+                            tool
+                          )
                         }
                         disabled={
                           tool.displayQuantity <=
@@ -867,8 +1414,11 @@ export default function BorrowerSlipPage() {
                           shrink-0
                         "
                       >
+
                         <Plus className="w-4 h-4" />
+
                         Add
+
                       </Button>
 
                     </div>
@@ -884,9 +1434,10 @@ export default function BorrowerSlipPage() {
 
         </Card>
 
-        {/* ==================================================== */}
-        {/* SELECTED TOOLS */}
-        {/* ==================================================== */}
+
+        {/* ====================================================
+            SELECTED TOOLS
+        ==================================================== */}
 
         <Card className="bg-white border border-gray-200 rounded-2xl shadow-sm overflow-hidden mb-6">
 
@@ -897,7 +1448,9 @@ export default function BorrowerSlipPage() {
               <div className="flex items-center gap-3">
 
                 <div className="w-10 h-10 rounded-xl bg-[#800000]/5 text-[#800000] flex items-center justify-center">
+
                   <ClipboardList className="w-5 h-5" />
+
                 </div>
 
                 <div>
@@ -914,13 +1467,17 @@ export default function BorrowerSlipPage() {
 
               </div>
 
+
               {cart.length > 0 && (
 
                 <span className="hidden sm:inline-flex items-center rounded-full bg-[#800000]/5 text-[#800000] px-3 py-1 text-xs font-semibold">
+
                   {cart.length}{" "}
+
                   {cart.length === 1
                     ? "tool"
                     : "tools"}
+
                 </span>
 
               )}
@@ -928,6 +1485,7 @@ export default function BorrowerSlipPage() {
             </div>
 
           </CardHeader>
+
 
           <CardContent className="p-5 sm:p-6">
 
@@ -951,74 +1509,87 @@ export default function BorrowerSlipPage() {
 
               <div className="space-y-2">
 
-                {cart.map((item) => (
+                {cart.map(
+                  (item) => (
 
-                  <div
-                    key={item.id}
-                    className="
-                      flex
-                      items-center
-                      gap-3
-                      rounded-xl
-                      border
-                      border-gray-200
-                      px-3
-                      py-3
-                      bg-white
-                    "
-                  >
-
-                    <div className="w-9 h-9 rounded-lg bg-[#800000]/5 text-[#800000] flex items-center justify-center shrink-0">
-                      <Package className="w-4 h-4" />
-                    </div>
-
-                    <div className="flex-1 min-w-0">
-
-                      <p className="font-medium text-gray-800 truncate">
-                        {item.name}
-                      </p>
-
-                    </div>
-
-                    <Input
-                      type="number"
-                      min="1"
-                      value={item.quantity}
-                      onChange={(e) =>
-                        updateQty(
-                          item.id,
-                          Number(
-                            e.target.value
-                          )
-                        )
-                      }
-                      className="w-20 h-9 text-center"
-                    />
-
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() =>
-                        removeItem(
-                          item.id
-                        )
+                    <div
+                      key={
+                        item.id
                       }
                       className="
-                        h-9
-                        w-9
-                        rounded-lg
-                        text-gray-400
-                        hover:text-red-600
-                        hover:bg-red-50
+                        flex
+                        items-center
+                        gap-3
+                        rounded-xl
+                        border
+                        border-gray-200
+                        px-3
+                        py-3
+                        bg-white
                       "
-                      title="Remove tool"
                     >
-                      <Trash2 className="w-4 h-4" />
-                    </Button>
 
-                  </div>
+                      <div className="w-9 h-9 rounded-lg bg-[#800000]/5 text-[#800000] flex items-center justify-center shrink-0">
 
-                ))}
+                        <Package className="w-4 h-4" />
+
+                      </div>
+
+
+                      <div className="flex-1 min-w-0">
+
+                        <p className="font-medium text-gray-800 truncate">
+                          {item.name}
+                        </p>
+
+                      </div>
+
+
+                      <Input
+                        type="number"
+                        min="1"
+                        value={
+                          item.quantity
+                        }
+                        onChange={(e) =>
+                          updateQty(
+                            item.id,
+                            Number(
+                              e.target.value
+                            )
+                          )
+                        }
+                        className="w-20 h-9 text-center"
+                      />
+
+
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() =>
+                          removeItem(
+                            item.id
+                          )
+                        }
+                        className="
+                          h-9
+                          w-9
+                          rounded-lg
+                          text-gray-400
+                          hover:text-red-600
+                          hover:bg-red-50
+                        "
+                        title="Remove tool"
+                      >
+
+                        <Trash2 className="w-4 h-4" />
+
+                      </Button>
+
+                    </div>
+
+                  )
+                )}
 
               </div>
 
@@ -1028,13 +1599,12 @@ export default function BorrowerSlipPage() {
 
         </Card>
 
-        {/* ==================================================== */}
-        {/* MEMBERS */}
-        {/* ==================================================== */}
+
+        {/* ====================================================
+            MEMBERS
+        ==================================================== */}
 
         <Card className="bg-white border border-gray-200 rounded-2xl shadow-sm overflow-hidden mb-6">
-
-          {/* MEMBER HEADER */}
 
           <CardHeader className="border-b border-gray-100">
 
@@ -1043,7 +1613,9 @@ export default function BorrowerSlipPage() {
               <div className="flex items-center gap-3">
 
                 <div className="w-10 h-10 rounded-xl bg-[#800000]/5 text-[#800000] flex items-center justify-center">
+
                   <Users className="w-5 h-5" />
+
                 </div>
 
                 <div>
@@ -1060,7 +1632,6 @@ export default function BorrowerSlipPage() {
 
               </div>
 
-              {/* MEMBER COUNT */}
 
               <div className="flex items-center gap-2">
 
@@ -1078,18 +1649,17 @@ export default function BorrowerSlipPage() {
 
           </CardHeader>
 
-          {/* MEMBER CONTENT */}
 
           <CardContent className="p-5 sm:p-6">
-
-            {/* HELPER MESSAGE */}
 
             <div className="mb-5 rounded-xl bg-[#fafafa] border border-gray-100 px-4 py-3">
 
               <div className="flex items-start gap-3">
 
                 <div className="w-8 h-8 rounded-lg bg-[#FFD700]/20 text-[#9a7800] flex items-center justify-center shrink-0">
+
                   <UserRound className="w-4 h-4" />
+
                 </div>
 
                 <div>
@@ -1109,7 +1679,6 @@ export default function BorrowerSlipPage() {
 
             </div>
 
-            {/* MEMBER GRID */}
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
 
@@ -1134,25 +1703,24 @@ export default function BorrowerSlipPage() {
                     "
                   >
 
-                    {/* NUMBER */}
-
-                    <div className="
-                      w-9
-                      h-9
-                      rounded-lg
-                      bg-[#800000]/5
-                      text-[#800000]
-                      flex
-                      items-center
-                      justify-center
-                      text-xs
-                      font-bold
-                      shrink-0
-                    ">
+                    <div
+                      className="
+                        w-9
+                        h-9
+                        rounded-lg
+                        bg-[#800000]/5
+                        text-[#800000]
+                        flex
+                        items-center
+                        justify-center
+                        text-xs
+                        font-bold
+                        shrink-0
+                      "
+                    >
                       {index + 1}
                     </div>
 
-                    {/* INPUT */}
 
                     <div className="flex-1 min-w-0">
 
@@ -1177,7 +1745,6 @@ export default function BorrowerSlipPage() {
 
                     </div>
 
-                    {/* REMOVE */}
 
                     <Button
                       type="button"
@@ -1189,7 +1756,8 @@ export default function BorrowerSlipPage() {
                         )
                       }
                       disabled={
-                        members.length === 1
+                        members.length ===
+                        1
                       }
                       className="
                         h-8
@@ -1203,7 +1771,9 @@ export default function BorrowerSlipPage() {
                       "
                       title="Remove member"
                     >
+
                       <Minus className="w-4 h-4" />
+
                     </Button>
 
                   </div>
@@ -1213,14 +1783,15 @@ export default function BorrowerSlipPage() {
 
             </div>
 
-            {/* ADD MORE */}
 
             <div className="mt-4 flex justify-center">
 
               <Button
                 type="button"
                 variant="outline"
-                onClick={addMember}
+                onClick={
+                  addMember
+                }
                 className="
                   h-9
                   px-4
@@ -1231,8 +1802,11 @@ export default function BorrowerSlipPage() {
                   hover:border-[#800000]/30
                 "
               >
+
                 <Plus className="w-4 h-4" />
+
                 Add another member
+
               </Button>
 
             </div>
@@ -1241,15 +1815,17 @@ export default function BorrowerSlipPage() {
 
         </Card>
 
-        {/* ==================================================== */}
-        {/* INSTRUCTOR + SUBMIT */}
-        {/* ==================================================== */}
+
+        {/* ====================================================
+            INSTRUCTOR + SUBMIT
+        ==================================================== */}
 
         <Card className="bg-white border border-gray-200 rounded-2xl shadow-sm overflow-hidden">
 
           <CardContent className="p-5 sm:p-6">
 
             <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-5">
+
 
               {/* INSTRUCTOR */}
 
@@ -1265,14 +1841,20 @@ export default function BorrowerSlipPage() {
 
                 </div>
 
+
                 <Select
                   value={instructor}
-                  onValueChange={setInstructor}
+                  onValueChange={
+                    setInstructor
+                  }
                 >
 
                   <SelectTrigger className="h-10 w-full">
+
                     <SelectValue placeholder="Select your instructor" />
+
                   </SelectTrigger>
+
 
                   <SelectContent>
 
@@ -1280,8 +1862,12 @@ export default function BorrowerSlipPage() {
                       (teacher) => (
 
                         <SelectItem
-                          key={teacher._id}
-                          value={teacher._id}
+                          key={
+                            teacher._id
+                          }
+                          value={
+                            teacher._id
+                          }
                         >
                           {teacher.name}
                         </SelectItem>
@@ -1295,11 +1881,16 @@ export default function BorrowerSlipPage() {
 
               </div>
 
+
               {/* SUBMIT */}
 
               <Button
-                onClick={handleSubmit}
-                disabled={submitting}
+                onClick={
+                  handleSubmit
+                }
+                disabled={
+                  submitting
+                }
                 className="
                   w-full
                   lg:w-auto
@@ -1318,17 +1909,31 @@ export default function BorrowerSlipPage() {
                 {submitting ? (
 
                   <>
-                    <div className="w-4 h-4 border-2 border-[#FFD700]/30 border-t-[#FFD700] rounded-full animate-spin" />
+
+                    <div
+                      className="
+                        w-4
+                        h-4
+                        border-2
+                        border-[#FFD700]/30
+                        border-t-[#FFD700]
+                        rounded-full
+                        animate-spin
+                      "
+                    />
 
                     Submitting...
+
                   </>
 
                 ) : (
 
                   <>
+
                     <Send className="w-4 h-4" />
 
                     Submit Borrower Slip
+
                   </>
 
                 )}
@@ -1341,9 +1946,10 @@ export default function BorrowerSlipPage() {
 
         </Card>
 
-        {/* ==================================================== */}
-        {/* FOOTER */}
-        {/* ==================================================== */}
+
+        {/* ====================================================
+            FOOTER
+        ==================================================== */}
 
         <footer className="py-8">
 

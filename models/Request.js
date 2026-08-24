@@ -57,6 +57,25 @@ const requestHistorySchema = new mongoose.Schema(
 
 const requestSchema = new mongoose.Schema(
   {
+    studentId: {
+    type: String,
+    required: true,
+    trim: true,
+    },
+
+    studentEmail: {
+    type: String,
+    default: "",
+    trim: true,
+    lowercase: true,
+    },
+
+    studentCourse: {
+    type: String,
+    default: "",
+    trim: true,
+    },
+
     studentName: {
       type: String,
       required: true,

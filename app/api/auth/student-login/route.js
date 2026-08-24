@@ -182,6 +182,7 @@ export async function POST(req) {
         fullName: user.fullName,
         email: user.email,
         studentId: user.studentId,
+        course: user.course,
         userId: user._id.toString(),
       },
       {

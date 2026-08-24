@@ -11,6 +11,8 @@ import {
   ShieldCheck,
   AlertTriangle,
   Cpu,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 
 import {
@@ -31,7 +33,7 @@ export interface Request {
 
   date: string;
   activityTitle: string;
-  
+
   instructor?: string;
   instructorName?: string;
 
@@ -55,12 +57,6 @@ export interface Request {
   returnedDate?: string;
   rejectedDate?: string;
 
-  /*
-   * The rejection reason is kept in the request data
-   * because it may be needed by the student side.
-   *
-   * It is NOT displayed inside RequestModal.
-   */
   rejectReason?: string;
 }
 
@@ -88,6 +84,14 @@ export default function RequestsManager() {
 
   const [activeTab, setActiveTab] =
     useState<RequestStatus>("pending");
+
+  // =====================================================
+  // PAGINATION
+  // =====================================================
+
+  const REQUESTS_PER_PAGE = 5;
+
+  const [currentPage, setCurrentPage] = useState(1);
 
   // =====================================================
   // REJECTION DIALOG STATE
@@ -214,13 +218,6 @@ export default function RequestsManager() {
   // =====================================================
 
   function handleReject(id: string) {
-    /*
-     * Only the rejection dialog asks for the reason.
-     *
-     * The RequestModal itself does NOT ask for a
-     * rejection reason anymore.
-     */
-
     setRejectingRequestId(id);
     setSelectedRejectReason("");
     setRejectReason("");
@@ -352,6 +349,92 @@ export default function RequestsManager() {
   );
 
   // =====================================================
+  // PAGINATION CALCULATIONS
+  // =====================================================
+
+  const totalPages = Math.max(
+    1,
+    Math.ceil(
+      filtered.length /
+        REQUESTS_PER_PAGE
+    )
+  );
+
+  // Make sure current page is always valid
+  useEffect(() => {
+    if (currentPage > totalPages) {
+      setCurrentPage(totalPages);
+    }
+  }, [currentPage, totalPages]);
+
+  const startIndex =
+    (currentPage - 1) *
+    REQUESTS_PER_PAGE;
+
+  const endIndex =
+    startIndex +
+    REQUESTS_PER_PAGE;
+
+  const paginatedRequests =
+    filtered.slice(
+      startIndex,
+      endIndex
+    );
+
+  // =====================================================
+  // RESET PAGE WHEN CHANGING STATUS
+  // =====================================================
+
+  function changeActiveTab(
+    status: RequestStatus
+  ) {
+    setActiveTab(status);
+    setCurrentPage(1);
+  }
+
+  // =====================================================
+  // PAGINATION HANDLERS
+  // =====================================================
+
+  function goToPage(page: number) {
+    if (
+      page < 1 ||
+      page > totalPages
+    ) {
+      return;
+    }
+
+    setCurrentPage(page);
+  }
+
+  function goToPreviousPage() {
+    if (currentPage > 1) {
+      setCurrentPage(
+        currentPage - 1
+      );
+    }
+  }
+
+  function goToNextPage() {
+    if (
+      currentPage < totalPages
+    ) {
+      setCurrentPage(
+        currentPage + 1
+      );
+    }
+  }
+
+  // =====================================================
+  // PAGE NUMBERS
+  // =====================================================
+
+  const pageNumbers = Array.from(
+    { length: totalPages },
+    (_, index) => index + 1
+  );
+
+  // =====================================================
   // STATISTICS
   // =====================================================
 
@@ -376,6 +459,21 @@ export default function RequestsManager() {
       (r) => r.status === "rejected"
     ).length,
   };
+
+  // =====================================================
+  // DISPLAY RANGE
+  // =====================================================
+
+  const displayStart =
+    filtered.length === 0
+      ? 0
+      : startIndex + 1;
+
+  const displayEnd =
+    Math.min(
+      endIndex,
+      filtered.length
+    );
 
   // =====================================================
   // UI
@@ -491,7 +589,7 @@ export default function RequestsManager() {
               activeTab === "pending"
             }
             onClick={() =>
-              setActiveTab("pending")
+              changeActiveTab("pending")
             }
           />
 
@@ -508,7 +606,7 @@ export default function RequestsManager() {
               activeTab === "approved"
             }
             onClick={() =>
-              setActiveTab("approved")
+              changeActiveTab("approved")
             }
           />
 
@@ -525,7 +623,7 @@ export default function RequestsManager() {
               activeTab === "released"
             }
             onClick={() =>
-              setActiveTab("released")
+              changeActiveTab("released")
             }
           />
 
@@ -542,7 +640,7 @@ export default function RequestsManager() {
               activeTab === "returned"
             }
             onClick={() =>
-              setActiveTab("returned")
+              changeActiveTab("returned")
             }
           />
 
@@ -559,7 +657,7 @@ export default function RequestsManager() {
               activeTab === "rejected"
             }
             onClick={() =>
-              setActiveTab("rejected")
+              changeActiveTab("rejected")
             }
           />
 
@@ -686,20 +784,173 @@ export default function RequestsManager() {
 
         ) : (
 
-          <div
-            className="
-              overflow-hidden
-              rounded-2xl
-              border
-              border-gray-100
-              bg-white
-            "
-          >
-            <RequestTable
-              requests={filtered}
-              onView={openModal}
-            />
-          </div>
+          <>
+            {/* ================================================= */}
+            {/* REQUEST TABLE */}
+            {/* ================================================= */}
+
+            <div
+              className="
+                overflow-hidden
+                rounded-2xl
+                border
+                border-gray-100
+                bg-white
+              "
+            >
+              <RequestTable
+                requests={paginatedRequests}
+                onView={openModal}
+              />
+            </div>
+
+            {/* ================================================= */}
+            {/* PAGINATION */}
+            {/* ================================================= */}
+
+            <div
+              className="
+                mt-4
+                flex
+                flex-col
+                gap-3
+                rounded-xl
+                border
+                border-gray-100
+                bg-gray-50/60
+                px-4
+                py-3
+                sm:flex-row
+                sm:items-center
+                sm:justify-between
+              "
+            >
+
+              {/* RANGE */}
+
+              <p className="text-xs text-gray-500">
+                Showing{" "}
+                <span className="font-semibold text-gray-700">
+                  {displayStart}
+                </span>
+                {"–"}
+                <span className="font-semibold text-gray-700">
+                  {displayEnd}
+                </span>{" "}
+                of{" "}
+                <span className="font-semibold text-gray-700">
+                  {filtered.length}
+                </span>{" "}
+                requests
+              </p>
+
+              {/* CONTROLS */}
+
+              <div className="flex items-center justify-center gap-1">
+
+                {/* PREVIOUS */}
+
+                <button
+                  type="button"
+                  onClick={goToPreviousPage}
+                  disabled={currentPage === 1}
+                  className="
+                    flex
+                    h-9
+                    w-9
+                    items-center
+                    justify-center
+                    rounded-lg
+                    border
+                    border-gray-200
+                    bg-white
+                    text-gray-600
+                    transition
+                    hover:border-[#800000]/30
+                    hover:bg-[#800000]/5
+                    hover:text-[#800000]
+                    disabled:cursor-not-allowed
+                    disabled:opacity-40
+                  "
+                  aria-label="Previous page"
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                </button>
+
+                {/* PAGE NUMBERS */}
+
+                <div className="flex items-center gap-1">
+
+                  {pageNumbers.map(
+                    (page) => (
+                      <button
+                        key={page}
+                        type="button"
+                        onClick={() =>
+                          goToPage(page)
+                        }
+                        className={`
+                          flex
+                          h-9
+                          min-w-9
+                          items-center
+                          justify-center
+                          rounded-lg
+                          px-2
+                          text-xs
+                          font-semibold
+                          transition
+                          ${
+                            currentPage ===
+                            page
+                              ? "bg-[#800000] text-[#FFD700] shadow-sm"
+                              : "border border-gray-200 bg-white text-gray-600 hover:border-[#800000]/30 hover:bg-[#800000]/5 hover:text-[#800000]"
+                          }
+                        `}
+                      >
+                        {page}
+                      </button>
+                    )
+                  )}
+
+                </div>
+
+                {/* NEXT */}
+
+                <button
+                  type="button"
+                  onClick={goToNextPage}
+                  disabled={
+                    currentPage ===
+                    totalPages
+                  }
+                  className="
+                    flex
+                    h-9
+                    w-9
+                    items-center
+                    justify-center
+                    rounded-lg
+                    border
+                    border-gray-200
+                    bg-white
+                    text-gray-600
+                    transition
+                    hover:border-[#800000]/30
+                    hover:bg-[#800000]/5
+                    hover:text-[#800000]
+                    disabled:cursor-not-allowed
+                    disabled:opacity-40
+                  "
+                  aria-label="Next page"
+                >
+                  <ChevronRight className="h-4 w-4" />
+                </button>
+
+              </div>
+
+            </div>
+          </>
 
         )}
 
@@ -719,12 +970,6 @@ export default function RequestsManager() {
             )
           }
 
-          /*
-           * This only opens the rejection dialog.
-           *
-           * The rejection reason is NOT requested inside
-           * RequestModal.
-           */
           onReject={(id: string) =>
             handleReject(id)
           }

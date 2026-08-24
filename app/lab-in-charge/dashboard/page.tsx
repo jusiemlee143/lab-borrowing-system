@@ -1,23 +1,18 @@
 "use client"
 
 import RequestsManager from "@/components/requests/RequestsManager"
-import EditToolModal from "@/components/EditToolModal"
-import DeleteToolDialog from "@/components/DeleteToolDialog"
 import HistoryManager from "@/components/history/HistoryManager"
+import ToolList from "@/components/tools/ToolList"
 
 import { useState, useEffect } from "react"
 
 import {
-  Search,
   LogOut,
-  Plus,
-  Trash2,
   User,
   Package,
   AlertCircle,
   Cpu,
   CircuitBoard,
-  Database,
   Boxes,
   Activity,
   ShieldCheck,
@@ -28,22 +23,11 @@ import {
 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
 
 import {
   Card,
   CardContent,
-  CardHeader,
-  CardTitle,
 } from "@/components/ui/card"
-
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
 
 import { useRouter } from "next/navigation"
 import { Spinner } from "@/components/ui/spinner"
@@ -86,33 +70,23 @@ export default function LabInChargePage() {
   const [loading, setLoading] = useState(true)
 
   const [tools, setTools] = useState<Tool[]>([])
-  const [selectedTool, setSelectedTool] = useState<Tool | null>(null)
 
-  const [editModalOpen, setEditModalOpen] = useState(false)
-  const [deleteOpen, setDeleteOpen] = useState(false)
+  const [stats, setStats] =
+    useState<DashboardStats>({
+      totalTools: 0,
+      availableTools: 0,
+      lowStock: 0,
+      unavailable: 0,
 
-  const [stats, setStats] = useState<DashboardStats>({
-    totalTools: 0,
-    availableTools: 0,
-    lowStock: 0,
-    unavailable: 0,
+      pending: 0,
+      approved: 0,
+      released: 0,
+      returned: 0,
+      rejected: 0,
 
-    pending: 0,
-    approved: 0,
-    released: 0,
-    returned: 0,
-    rejected: 0,
-
-    borrowedToday: 0,
-    returnedToday: 0,
-  })
-
-  const [search, setSearch] = useState("")
-  const [filter, setFilter] = useState("all")
-
-  const [isAddingItem, setIsAddingItem] = useState(false)
-  const [newItemName, setNewItemName] = useState("")
-  const [newItemQty, setNewItemQty] = useState("")
+      borrowedToday: 0,
+      returnedToday: 0,
+    })
 
   // ============================================================
   // FETCH DATA
@@ -126,70 +100,113 @@ export default function LabInChargePage() {
     try {
       setLoading(true)
 
-      const [toolsRes, dashboardRes] = await Promise.all([
-        fetch("/api/lab-in-charge/tools"),
-        fetch("/api/lab-in-charge/dashboard"),
+      const [
+        toolsRes,
+        dashboardRes,
+      ] = await Promise.all([
+        fetch(
+          "/api/lab-in-charge/tools",
+          {
+            cache: "no-store",
+          }
+        ),
+
+        fetch(
+          "/api/lab-in-charge/dashboard",
+          {
+            cache: "no-store",
+          }
+        ),
       ])
 
-      const toolsData = await toolsRes.json()
-      const dashboardData = await dashboardRes.json()
+      const toolsData =
+        await toolsRes.json()
 
-      const normalizedTools: Tool[] = Array.isArray(toolsData)
-        ? toolsData.map((t: any) => ({
-            _id: t._id,
-            name: t.name,
-            quantity: t.quantity,
-            status:
-              t.quantity === 0
-                ? "unavailable"
-                : t.quantity < 5
-                ? "low stock"
-                : "available",
-          }))
-        : []
+      const dashboardData =
+        await dashboardRes.json()
+
+      // ========================================================
+      // NORMALIZE TOOLS
+      // ========================================================
+
+      const normalizedTools: Tool[] =
+        Array.isArray(toolsData)
+          ? toolsData.map((t: any) => ({
+              _id: t._id,
+              name: t.name,
+              quantity: t.quantity,
+
+              status:
+                t.quantity === 0
+                  ? "unavailable"
+                  : t.quantity < 5
+                  ? "low stock"
+                  : "available",
+            }))
+          : []
 
       setTools(normalizedTools)
 
+      // ========================================================
+      // DASHBOARD STATISTICS
+      // ========================================================
+
       setStats({
         totalTools:
-          dashboardData?.totalTools ?? normalizedTools.length,
+          dashboardData?.totalTools ??
+          normalizedTools.length,
 
         availableTools:
-          dashboardData?.availableTools ?? 0,
+          dashboardData?.availableTools ??
+          0,
 
         lowStock:
-          dashboardData?.lowStock ?? 0,
+          dashboardData?.lowStock ??
+          0,
 
         unavailable:
-          dashboardData?.unavailable ?? 0,
+          dashboardData?.unavailable ??
+          0,
 
         pending:
-          dashboardData?.pending ?? 0,
+          dashboardData?.pending ??
+          0,
 
         approved:
-          dashboardData?.approved ?? 0,
+          dashboardData?.approved ??
+          0,
 
         released:
-          dashboardData?.released ?? 0,
+          dashboardData?.released ??
+          0,
 
         returned:
-          dashboardData?.returned ?? 0,
+          dashboardData?.returned ??
+          0,
 
         rejected:
-          dashboardData?.rejected ?? 0,
+          dashboardData?.rejected ??
+          0,
 
         borrowedToday:
-          dashboardData?.borrowedToday ?? 0,
+          dashboardData?.borrowedToday ??
+          0,
 
         returnedToday:
-          dashboardData?.returnedToday ?? 0,
+          dashboardData?.returnedToday ??
+          0,
       })
     } catch (err) {
-      console.error("Fetch error:", err)
+      console.error(
+        "Fetch error:",
+        err
+      )
 
       setTools([])
 
-      toast.error("Unable to load dashboard data.")
+      toast.error(
+        "Unable to load dashboard data."
+      )
     } finally {
       setLoading(false)
     }
@@ -201,99 +218,26 @@ export default function LabInChargePage() {
 
   const handleLogout = async () => {
     try {
-      await fetch("/api/auth/logout", {
-        method: "POST",
-      })
+      await fetch(
+        "/api/auth/logout",
+        {
+          method: "POST",
+        }
+      )
     } catch (error) {
-      console.error("Logout error:", error)
+      console.error(
+        "Logout error:",
+        error
+      )
     }
 
-    router.push("/lab-in-charge")
+    router.push(
+      "/lab-in-charge"
+    )
   }
 
   // ============================================================
-  // ADD ITEM
-  // ============================================================
-
-  const handleAddItem = async (e: React.FormEvent) => {
-    e.preventDefault()
-
-    if (!newItemName.trim() || !newItemQty) {
-      toast.error("Please fill in all fields.")
-      return
-    }
-
-    const quantity = parseInt(newItemQty)
-
-    if (Number.isNaN(quantity) || quantity < 0) {
-      toast.error("Please enter a valid quantity.")
-      return
-    }
-
-    try {
-      const res = await fetch("/api/lab-in-charge/tools", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          name: newItemName.trim(),
-          quantity,
-        }),
-      })
-
-      const data = await res.json()
-
-      if (!res.ok) {
-        toast.error(data.message || "Unable to add tool.")
-        return
-      }
-
-      await fetchData()
-
-      toast.success("Tool added successfully!")
-
-      setNewItemName("")
-      setNewItemQty("")
-      setIsAddingItem(false)
-    } catch (err) {
-      console.error(err)
-
-      toast.error("Unable to add tool.")
-    }
-  }
-
-  // ============================================================
-  // EDIT / DELETE
-  // ============================================================
-
-  const handleEdit = (tool: Tool) => {
-    setSelectedTool(tool)
-    setEditModalOpen(true)
-  }
-
-  const handleDeleteItem = (tool: Tool) => {
-    setSelectedTool(tool)
-    setDeleteOpen(true)
-  }
-
-  // ============================================================
-  // FILTER
-  // ============================================================
-
-  const filteredTools = tools.filter((tool) => {
-    const matchesSearch = tool.name
-      .toLowerCase()
-      .includes(search.toLowerCase())
-
-    const matchesFilter =
-      filter === "all" || tool.status === filter
-
-    return matchesSearch && matchesFilter
-  })
-
-  // ============================================================
-  // LOADING
+  // LOADING SCREEN
   // ============================================================
 
   if (loading) {
@@ -328,9 +272,7 @@ export default function LabInChargePage() {
 
       <div className="pointer-events-none fixed inset-0 overflow-hidden">
 
-        {/* ================================================== */}
         {/* TOP CIRCUIT */}
-        {/* ================================================== */}
 
         <div className="absolute left-0 top-[12%] h-px w-[28%] bg-[#800000]/10" />
 
@@ -338,9 +280,7 @@ export default function LabInChargePage() {
 
         <div className="absolute left-[28%] top-[calc(12%+6rem)] h-px w-24 bg-[#800000]/10" />
 
-        {/* ================================================== */}
         {/* BOTTOM CIRCUIT */}
-        {/* ================================================== */}
 
         <div className="absolute bottom-[18%] right-0 h-px w-[28%] bg-[#800000]/10" />
 
@@ -348,9 +288,7 @@ export default function LabInChargePage() {
 
         <div className="absolute bottom-[calc(18%+6rem)] right-[28%] h-px w-24 bg-[#800000]/10" />
 
-        {/* ================================================== */}
         {/* GOLD NODES */}
-        {/* ================================================== */}
 
         <div className="absolute left-[27.5%] top-[11.4%] h-2 w-2 rounded-full bg-[#FFD700]" />
 
@@ -358,9 +296,7 @@ export default function LabInChargePage() {
 
         <div className="absolute bottom-[17.4%] right-[27.5%] h-2 w-2 rounded-full bg-[#FFD700]" />
 
-        {/* ================================================== */}
         {/* LARGE GEARS */}
-        {/* ================================================== */}
 
         <Settings
           className="absolute -right-28 top-24 h-96 w-96 text-[#800000]/[0.025]"
@@ -372,9 +308,7 @@ export default function LabInChargePage() {
           strokeWidth={1}
         />
 
-        {/* ================================================== */}
         {/* TECHNOLOGY ICONS */}
-        {/* ================================================== */}
 
         <Cpu
           className="absolute right-[8%] top-[24%] h-10 w-10 text-[#800000]/[0.07]"
@@ -408,9 +342,7 @@ export default function LabInChargePage() {
 
           <div className="flex h-[76px] items-center justify-between gap-4">
 
-            {/* ==================================================
-                LEFT
-            ================================================== */}
+            {/* LEFT */}
 
             <div className="flex min-w-0 items-center gap-3">
 
@@ -481,9 +413,7 @@ export default function LabInChargePage() {
 
             </div>
 
-            {/* ==================================================
-                RIGHT
-            ================================================== */}
+            {/* RIGHT */}
 
             <div className="flex items-center gap-2">
 
@@ -629,7 +559,9 @@ export default function LabInChargePage() {
             title="Total Tools"
             value={tools.length}
             label="tool types"
-            icon={<Package className="h-5 w-5" />}
+            icon={
+              <Package className="h-5 w-5" />
+            }
             accent="maroon"
           />
 
@@ -637,7 +569,9 @@ export default function LabInChargePage() {
             title="Available"
             value={stats.availableTools}
             label="items"
-            icon={<Boxes className="h-5 w-5" />}
+            icon={
+              <Boxes className="h-5 w-5" />
+            }
             accent="green"
           />
 
@@ -645,7 +579,9 @@ export default function LabInChargePage() {
             title="Low Stock"
             value={stats.lowStock}
             label="items"
-            icon={<AlertCircle className="h-5 w-5" />}
+            icon={
+              <AlertCircle className="h-5 w-5" />
+            }
             accent="gold"
           />
 
@@ -653,7 +589,9 @@ export default function LabInChargePage() {
             title="Unavailable"
             value={stats.unavailable}
             label="items"
-            icon={<Package className="h-5 w-5" />}
+            icon={
+              <Package className="h-5 w-5" />
+            }
             accent="red"
           />
 
@@ -689,7 +627,9 @@ export default function LabInChargePage() {
               title="Pending"
               value={stats.pending}
               label="requests"
-              icon={<User className="h-4 w-4" />}
+              icon={
+                <User className="h-4 w-4" />
+              }
               iconClass="bg-blue-50 text-blue-600"
             />
 
@@ -697,7 +637,9 @@ export default function LabInChargePage() {
               title="Approved"
               value={stats.approved}
               label="requests"
-              icon={<ShieldCheck className="h-4 w-4" />}
+              icon={
+                <ShieldCheck className="h-4 w-4" />
+              }
               iconClass="bg-green-50 text-green-600"
             />
 
@@ -705,7 +647,9 @@ export default function LabInChargePage() {
               title="Released"
               value={stats.released}
               label="borrowed"
-              icon={<Package className="h-4 w-4" />}
+              icon={
+                <Package className="h-4 w-4" />
+              }
               iconClass="bg-indigo-50 text-indigo-600"
             />
 
@@ -713,7 +657,9 @@ export default function LabInChargePage() {
               title="Returned"
               value={stats.returned}
               label="completed"
-              icon={<RefreshCw className="h-4 w-4" />}
+              icon={
+                <RefreshCw className="h-4 w-4" />
+              }
               iconClass="bg-purple-50 text-purple-600"
             />
 
@@ -721,7 +667,9 @@ export default function LabInChargePage() {
               title="Rejected"
               value={stats.rejected}
               label="requests"
-              icon={<AlertCircle className="h-4 w-4" />}
+              icon={
+                <AlertCircle className="h-4 w-4" />
+              }
               iconClass="bg-red-50 text-red-600"
             />
 
@@ -738,14 +686,18 @@ export default function LabInChargePage() {
           <TodayCard
             title="Borrowed Today"
             value={stats.borrowedToday}
-            icon={<Package className="h-5 w-5" />}
+            icon={
+              <Package className="h-5 w-5" />
+            }
             accent="cyan"
           />
 
           <TodayCard
             title="Returned Today"
             value={stats.returnedToday}
-            icon={<RefreshCw className="h-5 w-5" />}
+            icon={
+              <RefreshCw className="h-5 w-5" />
+            }
             accent="emerald"
           />
 
@@ -792,445 +744,24 @@ export default function LabInChargePage() {
         </section>
 
         {/* ====================================================
-            INVENTORY
+            TOOL LIST
         ==================================================== */}
 
-        <Card className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
+        <section className="mb-8">
 
-          {/* HEADER */}
+          <div className="mb-4 flex items-center gap-2">
 
-          <CardHeader className="border-b border-gray-100 bg-white">
+            <div className="h-6 w-1 rounded-full bg-[#800000]" />
 
-            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <h2 className="text-xl font-bold text-[#800000]">
+              Tool Inventory
+            </h2>
 
-              <div>
+          </div>
 
-                <div className="flex items-center gap-2">
+          <ToolList />
 
-                  <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-[#800000]/5 text-[#800000]">
-
-                    <Database className="h-4 w-4" />
-
-                  </div>
-
-                  <CardTitle className="text-lg font-bold text-[#800000]">
-                    Inventory Management
-                  </CardTitle>
-
-                </div>
-
-                <p className="ml-11 mt-2 text-sm text-gray-500">
-                  Manage laboratory tools and available quantities.
-                </p>
-
-              </div>
-
-              <Button
-                onClick={() =>
-                  setIsAddingItem(!isAddingItem)
-                }
-                className="
-                  h-10
-                  rounded-lg
-                  bg-[#800000]
-                  px-4
-                  text-[#FFD700]
-                  shadow-sm
-                  hover:bg-[#660000]
-                "
-              >
-
-                <Plus className="mr-2 h-4 w-4" />
-
-                Add New Item
-
-              </Button>
-
-            </div>
-
-          </CardHeader>
-
-          {/* ==================================================
-              ADD ITEM
-          ================================================== */}
-
-          {isAddingItem && (
-
-            <CardContent className="border-b border-gray-100 bg-[#fafafa] p-5">
-
-              <form
-                onSubmit={handleAddItem}
-                className="grid grid-cols-1 items-end gap-4 sm:grid-cols-[1fr_150px_auto]"
-              >
-
-                <div>
-
-                  <label className="mb-1.5 block text-sm font-medium text-gray-700">
-                    Item Name
-                  </label>
-
-                  <Input
-                    placeholder="e.g. Multimeter"
-                    value={newItemName}
-                    onChange={(e) =>
-                      setNewItemName(e.target.value)
-                    }
-                    className="h-10 bg-white"
-                  />
-
-                </div>
-
-                <div>
-
-                  <label className="mb-1.5 block text-sm font-medium text-gray-700">
-                    Quantity
-                  </label>
-
-                  <Input
-                    type="number"
-                    placeholder="0"
-                    min="0"
-                    value={newItemQty}
-                    onChange={(e) =>
-                      setNewItemQty(e.target.value)
-                    }
-                    className="h-10 bg-white"
-                  />
-
-                </div>
-
-                <div className="flex gap-2">
-
-                  <Button
-                    type="submit"
-                    className="h-10 bg-green-600 hover:bg-green-700"
-                  >
-                    Save
-                  </Button>
-
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() =>
-                      setIsAddingItem(false)
-                    }
-                    className="h-10"
-                  >
-                    Cancel
-                  </Button>
-
-                </div>
-
-              </form>
-
-            </CardContent>
-
-          )}
-
-          {/* ==================================================
-              INVENTORY CONTENT
-          ================================================== */}
-
-          <CardContent className="p-5">
-
-            {/* SEARCH + FILTER */}
-
-            <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-
-              <div className="relative w-full sm:max-w-md">
-
-                <Search
-                  className="
-                    absolute
-                    left-3
-                    top-1/2
-                    h-4
-                    w-4
-                    -translate-y-1/2
-                    text-gray-400
-                  "
-                />
-
-                <Input
-                  placeholder="Search inventory..."
-                  className="h-10 bg-white pl-9"
-                  value={search}
-                  onChange={(e) =>
-                    setSearch(e.target.value)
-                  }
-                />
-
-              </div>
-
-              <Select
-                onValueChange={setFilter}
-                defaultValue="all"
-              >
-
-                <SelectTrigger className="h-10 w-full border-gray-200 sm:w-48">
-
-                  <SelectValue placeholder="Filter Status" />
-
-                </SelectTrigger>
-
-                <SelectContent>
-
-                  <SelectItem value="all">
-                    Show All
-                  </SelectItem>
-
-                  <SelectItem value="available">
-                    Available
-                  </SelectItem>
-
-                  <SelectItem value="low stock">
-                    Low Stock
-                  </SelectItem>
-
-                  <SelectItem value="unavailable">
-                    Unavailable
-                  </SelectItem>
-
-                </SelectContent>
-
-              </Select>
-
-            </div>
-
-            {/* =================================================
-                TABLE
-            ================================================= */}
-
-            <div className="overflow-x-auto rounded-xl border border-gray-200">
-
-              <table className="w-full text-sm">
-
-                <thead className="border-b border-gray-200 bg-[#fafafa]">
-
-                  <tr>
-
-                    <th className="px-4 py-3.5 text-left font-semibold text-[#800000]">
-                      Tool Name
-                    </th>
-
-                    <th className="px-4 py-3.5 text-left font-semibold text-[#800000]">
-                      Quantity
-                    </th>
-
-                    <th className="px-4 py-3.5 text-center font-semibold text-[#800000]">
-                      Status
-                    </th>
-
-                    <th className="px-4 py-3.5 text-right font-semibold text-[#800000]">
-                      Actions
-                    </th>
-
-                  </tr>
-
-                </thead>
-
-                <tbody>
-
-                  {filteredTools.length > 0 ? (
-
-                    filteredTools.map((tool) => (
-
-                      <tr
-                        key={tool._id}
-                        className="
-                          border-b
-                          border-gray-100
-                          transition-colors
-                          last:border-0
-                          hover:bg-[#800000]/[0.02]
-                        "
-                      >
-
-                        {/* TOOL */}
-
-                        <td className="px-4 py-4">
-
-                          <div className="flex items-center gap-3">
-
-                            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-[#800000]/5 text-[#800000]">
-
-                              <Package className="h-4 w-4" />
-
-                            </div>
-
-                            <span className="font-medium text-gray-900">
-                              {tool.name}
-                            </span>
-
-                          </div>
-
-                        </td>
-
-                        {/* QUANTITY */}
-
-                        <td className="px-4 py-4 text-gray-600">
-                          {tool.quantity}
-                        </td>
-
-                        {/* STATUS */}
-
-                        <td className="px-4 py-4 text-center">
-
-                          <span
-                            className={`
-                              inline-flex
-                              items-center
-                              gap-1.5
-                              rounded-full
-                              px-3
-                              py-1.5
-                              text-xs
-                              font-semibold
-                              ${
-                                tool.status === "available"
-                                  ? "bg-green-100 text-green-700"
-                                  : tool.status === "low stock"
-                                  ? "bg-yellow-100 text-yellow-700"
-                                  : "bg-red-100 text-red-700"
-                              }
-                            `}
-                          >
-
-                            <span
-                              className={`
-                                h-1.5
-                                w-1.5
-                                rounded-full
-                                ${
-                                  tool.status === "available"
-                                    ? "bg-green-500"
-                                    : tool.status === "low stock"
-                                    ? "bg-yellow-500"
-                                    : "bg-red-500"
-                                }
-                              `}
-                            />
-
-                            {tool.status}
-
-                          </span>
-
-                        </td>
-
-                        {/* ACTIONS */}
-
-                        <td className="px-4 py-4">
-
-                          <div className="flex items-center justify-end gap-1">
-
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="
-                                h-9
-                                w-9
-                                p-0
-                                text-blue-600
-                                hover:bg-blue-50
-                                hover:text-blue-700
-                              "
-                              onClick={() =>
-                                handleEdit(tool)
-                              }
-                              title="Edit Tool"
-                            >
-                              ✏️
-                            </Button>
-
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="
-                                h-9
-                                w-9
-                                p-0
-                                text-red-500
-                                hover:bg-red-50
-                                hover:text-red-700
-                              "
-                              onClick={() =>
-                                handleDeleteItem(tool)
-                              }
-                              title="Delete Tool"
-                            >
-
-                              <Trash2 className="h-4 w-4" />
-
-                            </Button>
-
-                          </div>
-
-                        </td>
-
-                      </tr>
-
-                    ))
-
-                  ) : (
-
-                    <tr>
-
-                      <td
-                        colSpan={4}
-                        className="py-12 text-center"
-                      >
-
-                        <div className="flex flex-col items-center">
-
-                          <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-xl bg-gray-100">
-
-                            <Package className="h-5 w-5 text-gray-400" />
-
-                          </div>
-
-                          <p className="font-medium text-gray-600">
-                            No tools found
-                          </p>
-
-                          <p className="mt-1 text-sm text-gray-400">
-                            Try changing your search or filter.
-                          </p>
-
-                        </div>
-
-                      </td>
-
-                    </tr>
-
-                  )}
-
-                </tbody>
-
-              </table>
-
-            </div>
-
-            {/* FOOTER */}
-
-            <div className="mt-4 flex items-center justify-between text-xs text-gray-400">
-
-              <span>
-                Showing {filteredTools.length} of {tools.length} tool types
-              </span>
-
-              <div className="flex items-center gap-1">
-
-                <Boxes className="h-3.5 w-3.5" />
-
-                Inventory Database
-
-              </div>
-
-            </div>
-
-          </CardContent>
-
-        </Card>
+        </section>
 
         {/* ====================================================
             FOOTER
@@ -1262,38 +793,6 @@ export default function LabInChargePage() {
 
       </main>
 
-      {/* ====================================================== */}
-      {/* EDIT TOOL MODAL */}
-      {/* ====================================================== */}
-
-      <EditToolModal
-        open={editModalOpen}
-        tool={selectedTool}
-        onClose={() => {
-          setEditModalOpen(false)
-          setSelectedTool(null)
-        }}
-        onSaved={fetchData}
-      />
-
-      {/* ====================================================== */}
-      {/* DELETE TOOL DIALOG */}
-      {/* ====================================================== */}
-
-      <DeleteToolDialog
-        open={deleteOpen}
-        tool={selectedTool}
-        onClose={() => {
-          setDeleteOpen(false)
-          setSelectedTool(null)
-        }}
-        onDeleted={async () => {
-          await fetchData()
-          setDeleteOpen(false)
-          setSelectedTool(null)
-        }}
-      />
-
     </div>
   )
 }
@@ -1306,9 +805,7 @@ function LabLoadingScreen() {
   return (
     <div className="relative min-h-screen overflow-hidden bg-[#fafafa]">
 
-      {/* ======================================================
-          TECHNOLOGY GRID
-      ====================================================== */}
+      {/* TECHNOLOGY GRID */}
 
       <div
         className="pointer-events-none fixed inset-0 opacity-[0.025]"
@@ -1321,9 +818,7 @@ function LabLoadingScreen() {
         }}
       />
 
-      {/* ======================================================
-          DECORATIONS
-      ====================================================== */}
+      {/* DECORATIONS */}
 
       <div className="pointer-events-none fixed inset-0 overflow-hidden">
 
@@ -1359,9 +854,7 @@ function LabLoadingScreen() {
 
       </div>
 
-      {/* ======================================================
-          LOADING
-      ====================================================== */}
+      {/* LOADING */}
 
       <div className="relative z-10 flex min-h-screen items-center justify-center px-5">
 
@@ -1408,7 +901,11 @@ function DashboardStat({
   value: number
   label: string
   icon: React.ReactNode
-  accent: "maroon" | "green" | "gold" | "red"
+  accent:
+    | "maroon"
+    | "green"
+    | "gold"
+    | "red"
 }) {
   const styles = {
     maroon: {

@@ -15,6 +15,9 @@ export async function POST(req) {
     // =====================================================
 
     const {
+      studentId,
+      studentEmail,
+      studentCourse,
       name,
       section,
       groupNumber,
@@ -26,8 +29,18 @@ export async function POST(req) {
     } = await req.json();
 
     // =====================================================
-    // VALIDATE REQUIRED FIELDS
+    // VALIDATE STUDENT INFORMATION
     // =====================================================
+
+    if (!studentId || !String(studentId).trim()) {
+      return Response.json(
+        {
+          success: false,
+          message: "Student ID is required.",
+        },
+        { status: 400 }
+      );
+    }
 
     if (!name || !name.trim()) {
       return Response.json(
@@ -35,11 +48,13 @@ export async function POST(req) {
           success: false,
           message: "Student name is required.",
         },
-        {
-          status: 400,
-        }
+        { status: 400 }
       );
     }
+
+    // =====================================================
+    // VALIDATE BORROWING INFORMATION
+    // =====================================================
 
     if (!section || !section.trim()) {
       return Response.json(
@@ -47,9 +62,7 @@ export async function POST(req) {
           success: false,
           message: "Section is required.",
         },
-        {
-          status: 400,
-        }
+        { status: 400 }
       );
     }
 
@@ -59,9 +72,7 @@ export async function POST(req) {
           success: false,
           message: "Group number is required.",
         },
-        {
-          status: 400,
-        }
+        { status: 400 }
       );
     }
 
@@ -71,9 +82,7 @@ export async function POST(req) {
           success: false,
           message: "Date is required.",
         },
-        {
-          status: 400,
-        }
+        { status: 400 }
       );
     }
 
@@ -83,21 +92,17 @@ export async function POST(req) {
           success: false,
           message: "Activity title is required.",
         },
-        {
-          status: 400,
-        }
+        { status: 400 }
       );
     }
 
-    if (!instructor || !instructor.trim()) {
+    if (!instructor || !String(instructor).trim()) {
       return Response.json(
         {
           success: false,
           message: "Instructor is required.",
         },
-        {
-          status: 400,
-        }
+        { status: 400 }
       );
     }
 
@@ -111,9 +116,7 @@ export async function POST(req) {
           success: false,
           message: "No tools selected.",
         },
-        {
-          status: 400,
-        }
+        { status: 400 }
       );
     }
 
@@ -128,9 +131,7 @@ export async function POST(req) {
             success: false,
             message: "A selected tool is missing its ID.",
           },
-          {
-            status: 400,
-          }
+          { status: 400 }
         );
       }
 
@@ -140,9 +141,7 @@ export async function POST(req) {
             success: false,
             message: "A selected tool is missing its name.",
           },
-          {
-            status: 400,
-          }
+          { status: 400 }
         );
       }
 
@@ -154,9 +153,7 @@ export async function POST(req) {
             success: false,
             message: `Invalid quantity for ${item.name}.`,
           },
-          {
-            status: 400,
-          }
+          { status: 400 }
         );
       }
     }
@@ -166,21 +163,48 @@ export async function POST(req) {
     // =====================================================
 
     const request = await Request.create({
+      studentId: String(studentId).trim(),
+
+      studentEmail: studentEmail
+        ? String(studentEmail).trim().toLowerCase()
+        : "",
+
+      studentCourse: studentCourse
+        ? String(studentCourse).trim()
+        : "",
+
       studentName: name.trim(),
+
       section: section.trim(),
+
       groupNumber: String(groupNumber).trim(),
+
       date: date.trim(),
+
       activityTitle: activityTitle.trim(),
+
       instructor: instructor.trim(),
-      members: Array.isArray(members) ? members : [],
+
+      members: Array.isArray(members)
+        ? members
+        : [],
+
       cart,
+
       status: "pending",
     });
+
+    // =====================================================
+    // LOG REQUEST
+    // =====================================================
 
     console.log("==================================");
     console.log("REQUEST CREATED");
     console.log("Request ID:", request._id.toString());
+    console.log("Student ID:", request.studentId);
     console.log("Student:", request.studentName);
+    console.log("Email:", request.studentEmail);
+    console.log("Course:", request.studentCourse);
     console.log("Section:", request.section);
     console.log("Group Number:", request.groupNumber);
     console.log("Activity:", request.activityTitle);
@@ -191,28 +215,20 @@ export async function POST(req) {
     // CREATE HISTORY / AUDIT RECORD
     // =====================================================
 
+    /*
+     * The student created this request.
+     *
+     * Since the student is not currently authenticated
+     * through the User model on this API route,
+     * userId is null.
+     *
+     * The student's name is stored in performedBy.fullName.
+     */
+
     await RequestHistory.create({
       requestId: request._id,
 
-      // This records the initial submission.
       action: "created",
-
-      // ===================================================
-      // STUDENT ACTOR
-      // ===================================================
-      //
-      // Students currently do not use the authenticated
-      // User model in this route.
-      //
-      // Therefore:
-      //
-      // userId     = null
-      // fullName   = student name
-      // employeeId = ""
-      //
-      // This preserves a snapshot of who submitted the
-      // request even if the request is viewed later.
-      // ===================================================
 
       performedBy: {
         userId: null,
@@ -222,6 +238,10 @@ export async function POST(req) {
 
       reason: "",
     });
+
+    // =====================================================
+    // LOG HISTORY
+    // =====================================================
 
     console.log("==================================");
     console.log("CREATED HISTORY");

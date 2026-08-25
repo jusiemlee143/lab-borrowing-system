@@ -15,6 +15,7 @@ import {
   Package,
   Layers3,
   RefreshCw,
+  History,
 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
@@ -71,6 +72,7 @@ export default function StudentPage() {
 
   const [checkingSession, setCheckingSession] = useState(true)
   const [authError, setAuthError] = useState(false)
+  const [studentName, setStudentName] = useState("Student")
 
   // ============================================================
   // CHECK STUDENT SESSION
@@ -116,6 +118,12 @@ export default function StudentPage() {
         }, 2000)
 
         return () => clearTimeout(timer)
+      }
+
+      if (parsed?.fullName) {
+      setStudentName(parsed.fullName)
+      } else if (parsed?.studentId) {
+      setStudentName(parsed.studentId)
       }
 
       // ========================================================
@@ -607,7 +615,7 @@ export default function StudentPage() {
               <div>
 
                 <h3 className="text-lg font-bold text-[#800000]">
-                  Welcome, Student 👋
+                  Welcome, {studentName} 👋
                 </h3>
 
                 <p className="mt-1 max-w-2xl text-sm leading-relaxed text-gray-500">
@@ -663,56 +671,65 @@ export default function StudentPage() {
         <Card className="mb-6 overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
 
           <CardHeader className="border-b border-gray-100 bg-white">
-
             <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
 
               <div>
-
                 <div className="flex items-center gap-2">
-
                   <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-[#800000]/5 text-[#800000]">
-
                     <Search className="h-4 w-4" />
-
                   </div>
 
                   <CardTitle className="text-lg font-bold text-[#800000]">
                     Equipment Inventory
                   </CardTitle>
-
                 </div>
 
                 <p className="ml-11 mt-2 text-sm text-gray-500">
                   Search and filter available laboratory equipment.
                 </p>
+              </div>
+
+              {/* HISTORY + BORROWER SLIP */}
+              <div className="flex flex-col gap-2 sm:flex-row">
+
+                {/* HISTORY */}
+                <Button
+                  variant="outline"
+                  onClick={() => router.push("/student/history")}
+                  className="
+                    h-10
+                    rounded-lg
+                    border-[#800000]/20
+                    px-4
+                    text-[#800000]
+                    hover:bg-[#800000]
+                    hover:text-[#FFD700]
+                  "
+                >
+                  <History className="mr-2 h-4 w-4" />
+                  History
+                </Button>
+
+                {/* BORROWER SLIP */}
+                <Button
+                  onClick={() => router.push("/student/borrower-slip")}
+                  className="
+                    h-10
+                    rounded-lg
+                    bg-[#800000]
+                    px-4
+                    text-[#FFD700]
+                    shadow-sm
+                    hover:bg-[#660000]
+                  "
+                >
+                  <FileText className="mr-2 h-4 w-4" />
+                  Borrower Slip
+                </Button>
 
               </div>
 
-              {/* BORROWER SLIP */}
-
-              <Button
-                onClick={() =>
-                  router.push("/student/borrower-slip")
-                }
-                className="
-                  h-10
-                  rounded-lg
-                  bg-[#800000]
-                  px-4
-                  text-[#FFD700]
-                  shadow-sm
-                  hover:bg-[#660000]
-                "
-              >
-
-                <FileText className="mr-2 h-4 w-4" />
-
-                Borrower Slip
-
-              </Button>
-
             </div>
-
           </CardHeader>
 
           <CardContent className="p-5">

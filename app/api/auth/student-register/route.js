@@ -10,12 +10,19 @@ export async function POST(req) {
     const {
       studentId,
       fullName,
+      course,
       email,
       password,
     } = await req.json();
 
     // Check required fields
-    if (!studentId || !fullName || !email || !password) {
+    if (
+      !studentId ||
+      !fullName ||
+      !course ||
+      !email ||
+      !password
+    ) {
       return new Response(
         JSON.stringify({
           message: "All fields are required",
@@ -46,6 +53,7 @@ export async function POST(req) {
 
     const cleanStudentId = studentId.trim();
     const cleanFullName = fullName.trim();
+    const cleanCourse = course.trim();
     const cleanEmail = email.trim().toLowerCase();
 
     // Check if Student ID already exists
@@ -90,6 +98,7 @@ export async function POST(req) {
     const user = await User.create({
       studentId: cleanStudentId,
       fullName: cleanFullName,
+      course: cleanCourse,
       email: cleanEmail,
       password,
       role: "student",
@@ -122,7 +131,7 @@ export async function POST(req) {
         verificationToken
       )}`;
 
-    // Send verification email using your EXISTING sendEmail.js
+    // Send verification email
     await sendEmail({
       to: user.email,
       subject: "Verify Your Student Account",

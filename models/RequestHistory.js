@@ -42,14 +42,14 @@ const RequestHistorySchema = new mongoose.Schema(
      *
      * For LIC actions:
      *
-     * userId    = authenticated User ID
-     * fullName  = LIC full name
+     * userId     = authenticated User ID
+     * fullName   = LIC full name
      * employeeId = LIC employee ID
      *
      * For student-created requests:
      *
-     * userId    = null
-     * fullName  = student name
+     * userId     = null
+     * fullName   = student name
      * employeeId = ""
      */
 

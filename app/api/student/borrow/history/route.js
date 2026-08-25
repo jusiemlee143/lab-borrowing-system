@@ -1,5 +1,6 @@
 import connectDB from "@/models/utils/db";
 import Request from "@/models/Request";
+import Teacher from "@/models/Teacher"
 
 export async function GET(req) {
   try {

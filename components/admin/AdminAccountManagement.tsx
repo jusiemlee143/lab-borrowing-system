@@ -3,7 +3,6 @@
 import { useEffect, useMemo, useState } from "react";
 import {
   Activity,
-  AlertTriangle,
   CheckCircle2,
   Edit3,
   Eye,
@@ -80,6 +79,11 @@ interface EditLICFormData {
   email: string;
 }
 
+interface TeacherFormData {
+  name: string;
+  email: string;
+}
+
 // ============================================================
 // COMPONENT
 // ============================================================
@@ -94,8 +98,10 @@ export default function AdminAccountManagement() {
   const [refreshing, setRefreshing] = useState(false);
   const [creatingLIC, setCreatingLIC] = useState(false);
   const [savingEdit, setSavingEdit] = useState(false);
+  const [creatingTeacher, setCreatingTeacher] = useState(false);
 
   const [showCreateLIC, setShowCreateLIC] = useState(false);
+  const [showAddTeacher, setShowAddTeacher] = useState(false);
 
   const [activeTab, setActiveTab] = useState<AccountTab>("all");
   const [searchQuery, setSearchQuery] = useState("");
@@ -120,6 +126,11 @@ export default function AdminAccountManagement() {
     employeeId: "",
     department: "",
     contactNumber: "",
+    email: "",
+  });
+
+  const [teacherForm, setTeacherForm] = useState<TeacherFormData>({
+    name: "",
     email: "",
   });
 
@@ -353,6 +364,102 @@ export default function AdminAccountManagement() {
   };
 
   // ============================================================
+  // TEACHER FORM
+  // ============================================================
+
+  const handleTeacherInputChange = (
+    field: keyof TeacherFormData,
+    value: string
+  ) => {
+    setTeacherForm((previous) => ({
+      ...previous,
+      [field]: value,
+    }));
+  };
+
+  const resetTeacherForm = () => {
+    setTeacherForm({
+      name: "",
+      email: "",
+    });
+  };
+
+  const openAddTeacher = () => {
+    resetTeacherForm();
+    setShowAddTeacher(true);
+  };
+
+  // ============================================================
+  // ADD TEACHER
+  // ============================================================
+
+  const handleAddTeacher = async (event: React.FormEvent) => {
+    event.preventDefault();
+
+    const name = teacherForm.name.trim();
+    const email = teacherForm.email.trim().toLowerCase();
+
+    if (!name) {
+      toast.error("Please enter the teacher's name.");
+      return;
+    }
+
+    if (!email) {
+      toast.error("Please enter the teacher's email address.");
+      return;
+    }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+    if (!emailRegex.test(email)) {
+      toast.error("Please enter a valid email address.");
+      return;
+    }
+
+    try {
+      setCreatingTeacher(true);
+
+      const response = await fetch("/api/admin/teachers", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          name,
+          email,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(
+          data?.message ||
+            data?.error ||
+            "Failed to add teacher account."
+        );
+      }
+
+      toast.success("Teacher account added successfully.");
+
+      setShowAddTeacher(false);
+      resetTeacherForm();
+
+      await fetchAccounts();
+    } catch (error) {
+      console.error("Add teacher error:", error);
+
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Failed to add teacher account."
+      );
+    } finally {
+      setCreatingTeacher(false);
+    }
+  };
+
+  // ============================================================
   // OPEN EDIT LIC
   // ============================================================
 
@@ -366,14 +473,11 @@ export default function AdminAccountManagement() {
 
     setEditLICForm({
       fullName: account.name === "—" ? "" : account.name,
-      employeeId:
-        account.identifier === "—" ? "" : account.identifier,
+      employeeId: account.identifier === "—" ? "" : account.identifier,
       department:
         account.department === "—" ? "" : account.department,
       contactNumber:
-        account.contactNumber === "—"
-          ? ""
-          : account.contactNumber,
+        account.contactNumber === "—" ? "" : account.contactNumber,
       email: account.email === "—" ? "" : account.email,
     });
 
@@ -531,19 +635,17 @@ export default function AdminAccountManagement() {
       createdAt: account.createdAt,
     }));
 
-    const teacherRows: AccountRow[] = teacherAccounts.map(
-      (teacher) => ({
-        id: teacher._id,
-        name: teacher.name || "Unnamed Teacher",
-        type: "Teacher",
-        identifier: "—",
-        department: "—",
-        email: teacher.email || "—",
-        contactNumber: "—",
-        verified: true,
-        createdAt: teacher.createdAt,
-      })
-    );
+    const teacherRows: AccountRow[] = teacherAccounts.map((teacher) => ({
+      id: teacher._id,
+      name: teacher.name || "Unnamed Teacher",
+      type: "Teacher",
+      identifier: "—",
+      department: "—",
+      email: teacher.email || "—",
+      contactNumber: "—",
+      verified: true,
+      createdAt: teacher.createdAt,
+    }));
 
     return [...licRows, ...teacherRows];
   }, [licAccounts, teacherAccounts]);
@@ -649,7 +751,7 @@ export default function AdminAccountManagement() {
               </p>
             </div>
 
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <button
                 type="button"
                 onClick={fetchAccounts}
@@ -663,6 +765,15 @@ export default function AdminAccountManagement() {
                 />
 
                 {refreshing ? "Refreshing..." : "Refresh"}
+              </button>
+
+              <button
+                type="button"
+                onClick={openAddTeacher}
+                className="inline-flex items-center justify-center gap-2 rounded-xl border border-blue-200 bg-white px-4 py-2.5 text-sm font-semibold text-blue-600 shadow-sm transition hover:border-blue-300 hover:bg-blue-50 hover:shadow-md"
+              >
+                <UserCog className="h-4 w-4" />
+                Add Teacher
               </button>
 
               <button
@@ -881,6 +992,23 @@ export default function AdminAccountManagement() {
             if (!creatingLIC) {
               setShowCreateLIC(false);
               resetLICForm();
+            }
+          }}
+        />
+      )}
+
+      {/* ADD TEACHER MODAL */}
+
+      {showAddTeacher && (
+        <AddTeacherModal
+          form={teacherForm}
+          loading={creatingTeacher}
+          onChange={handleTeacherInputChange}
+          onSubmit={handleAddTeacher}
+          onClose={() => {
+            if (!creatingTeacher) {
+              setShowAddTeacher(false);
+              resetTeacherForm();
             }
           }}
         />
@@ -1107,25 +1235,6 @@ function CreateLICModal({
                   </button>
                 </div>
               </div>
-
-              {/* WARNING */}
-
-              <div className="mt-4 flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 p-4">
-                <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" />
-
-                <div>
-                  <p className="text-xs font-semibold text-amber-700">
-                    Important
-                  </p>
-
-                  <p className="mt-1 text-[11px] leading-5 text-amber-700/80">
-                    Keep the temporary password secure. The LIC
-                    should change this password after their first
-                    login and should not share their login
-                    credentials with other users.
-                  </p>
-                </div>
-              </div>
             </div>
           </div>
 
@@ -1153,6 +1262,157 @@ function CreateLICModal({
                 <>
                   <Plus className="h-4 w-4" />
                   Create LIC Account
+                </>
+              )}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+// ============================================================
+// ADD TEACHER MODAL
+// ============================================================
+
+function AddTeacherModal({
+  form,
+  loading,
+  onChange,
+  onSubmit,
+  onClose,
+}: {
+  form: TeacherFormData;
+  loading: boolean;
+  onChange: (
+    field: keyof TeacherFormData,
+    value: string
+  ) => void;
+  onSubmit: (event: React.FormEvent) => void;
+  onClose: () => void;
+}) {
+  return (
+    <div className="fixed inset-0 z-[125] flex items-center justify-center bg-black/40 px-4 py-6 backdrop-blur-[2px]">
+      <button
+        type="button"
+        aria-label="Close add teacher modal"
+        onClick={onClose}
+        disabled={loading}
+        className="absolute inset-0 cursor-default"
+      />
+
+      <div className="relative z-10 w-full max-w-lg overflow-hidden rounded-2xl border border-blue-100 bg-white shadow-2xl">
+        {/* HEADER */}
+
+        <div className="border-b border-gray-100 bg-blue-50/40 px-5 py-4">
+          <div className="flex items-center justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-blue-50 text-blue-600">
+                <UserCog className="h-5 w-5" />
+              </div>
+
+              <div>
+                <p className="text-xs font-medium uppercase tracking-wider text-gray-400">
+                  Account Management
+                </p>
+
+                <h3 className="mt-0.5 text-base font-bold text-blue-700">
+                  Add Teacher
+                </h3>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={onClose}
+              disabled={loading}
+              className="rounded-lg p-2 text-gray-400 transition hover:bg-gray-100 hover:text-gray-700 disabled:opacity-50"
+            >
+              <X className="h-5 w-5" />
+            </button>
+          </div>
+        </div>
+
+        {/* FORM */}
+
+        <form onSubmit={onSubmit}>
+          <div className="space-y-5 p-5">
+            <div className="rounded-xl border border-blue-100 bg-blue-50/40 p-4">
+              <div className="flex items-start gap-3">
+                <UserCog className="mt-0.5 h-4 w-4 shrink-0 text-blue-600" />
+
+                <div>
+                  <p className="text-xs font-semibold text-blue-700">
+                    Teacher Account
+                  </p>
+
+                  <p className="mt-1 text-[11px] leading-5 text-gray-500">
+                    Add a teacher who can be registered in the
+                    laboratory borrowing system.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <FormField label="Teacher Name" required>
+              <input
+                type="text"
+                value={form.name}
+                onChange={(event) =>
+                  onChange("name", event.target.value)
+                }
+                placeholder="e.g. Juan Dela Cruz"
+                disabled={loading}
+                autoFocus
+                className={inputClassName}
+              />
+            </FormField>
+
+            <FormField label="Email Address" required>
+              <input
+                type="email"
+                value={form.email}
+                onChange={(event) =>
+                  onChange("email", event.target.value)
+                }
+                placeholder="teacher@example.com"
+                disabled={loading}
+                className={inputClassName}
+              />
+
+              <p className="mt-1.5 text-[10px] text-gray-400">
+                This email must be unique.
+              </p>
+            </FormField>
+          </div>
+
+          {/* FOOTER */}
+
+          <div className="flex flex-col-reverse gap-2 border-t border-gray-100 bg-gray-50/50 px-5 py-4 sm:flex-row sm:justify-end">
+            <button
+              type="button"
+              onClick={onClose}
+              disabled={loading}
+              className="rounded-lg border border-gray-200 bg-white px-4 py-2.5 text-sm font-medium text-gray-600 transition hover:bg-gray-100 disabled:opacity-50"
+            >
+              Cancel
+            </button>
+
+            <button
+              type="submit"
+              disabled={loading}
+              className="inline-flex items-center justify-center gap-2 rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:opacity-60"
+            >
+              {loading ? (
+                <>
+                  <RefreshCw className="h-4 w-4 animate-spin" />
+                  Adding...
+                </>
+              ) : (
+                <>
+                  <Plus className="h-4 w-4" />
+                  Add Teacher
                 </>
               )}
             </button>
@@ -1196,8 +1456,6 @@ function EditLICModal({
       />
 
       <div className="relative z-10 w-full max-w-xl overflow-hidden rounded-2xl border border-[#800000]/10 bg-white shadow-2xl">
-        {/* HEADER */}
-
         <div className="border-b border-gray-100 bg-[#800000]/[0.025] px-5 py-4">
           <div className="flex items-center justify-between gap-4">
             <div className="flex items-center gap-3">
@@ -1226,8 +1484,6 @@ function EditLICModal({
             </button>
           </div>
         </div>
-
-        {/* FORM */}
 
         <form onSubmit={onSubmit}>
           <div className="max-h-[70vh] overflow-y-auto p-5">
@@ -1317,31 +1573,12 @@ function EditLICModal({
               </FormField>
             </div>
 
-            {/* WARNING */}
-
-            <div className="mt-5 flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 p-4">
-              <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" />
-
-              <div>
-                <p className="text-xs font-semibold text-amber-700">
-                  Warning
-                </p>
-
-                <p className="mt-1 text-[11px] leading-5 text-amber-700/80">
-                  Please verify the information before saving.
-                  Changes made here will update the LIC account
-                  information in the system. The password will
-                  remain unchanged.
-                </p>
-              </div>
-            </div>
-
-            <div className="mt-4 rounded-xl border border-[#800000]/10 bg-[#800000]/[0.025] p-4">
+            <div className="mt-5 rounded-xl border border-[#FFD700]/30 bg-[#FFD700]/[0.06] p-4">
               <div className="flex items-start gap-3">
-                <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-[#800000]" />
+                <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-[#8a6b00]" />
 
                 <div>
-                  <p className="text-xs font-semibold text-[#800000]">
+                  <p className="text-xs font-semibold text-[#8a6b00]">
                     Security Notice
                   </p>
 
@@ -1353,8 +1590,6 @@ function EditLICModal({
               </div>
             </div>
           </div>
-
-          {/* FOOTER */}
 
           <div className="flex flex-col-reverse gap-2 border-t border-gray-100 bg-gray-50/50 px-5 py-4 sm:flex-row sm:justify-end">
             <button
@@ -1967,32 +2202,7 @@ function AccountDetailsModal({
             />
           </div>
 
-          {/* WARNING SIGN */}
-
-          <div className="mt-5 rounded-xl border border-amber-200 bg-amber-50 p-4">
-            <div className="flex items-start gap-3">
-              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-amber-100 text-amber-600">
-                <AlertTriangle className="h-5 w-5" />
-              </div>
-
-              <div>
-                <p className="text-xs font-bold text-amber-700">
-                  Important Account Notice
-                </p>
-
-                <p className="mt-1.5 text-[11px] leading-5 text-amber-700/80">
-                  This account contains sensitive user
-                  information. Please verify the account details
-                  carefully before making any changes. Do not
-                  share passwords or authentication credentials.
-                </p>
-              </div>
-            </div>
-          </div>
-
-          {/* SECURITY INFORMATION */}
-
-          <div className="mt-4 rounded-xl border border-[#800000]/10 bg-[#800000]/[0.025] p-4">
+          <div className="mt-5 rounded-xl border border-[#800000]/10 bg-[#800000]/[0.025] p-4">
             <div className="flex items-start gap-3">
               <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-[#800000]" />
 

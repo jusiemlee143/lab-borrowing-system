@@ -15,6 +15,10 @@ import {
 import AdminDashboard from "@/components/admin/AdminDashboard";
 import AdminHeader from "@/components/admin/AdminHeader";
 import AdminAccountManagement from "@/components/admin/AdminAccountManagement";
+import AdminEquipmentManagement from "@/components/admin/AdminEquipmentManagement";
+import AdminBorrowingRecords from "@/components/admin/AdminBorrowingRecords";
+import AdminHistoryAudit from "@/components/admin/AdminHistoryAudit";
+
 import AdminSidebar, {
   AdminSection,
 } from "@/components/admin/AdminSidebar";
@@ -348,21 +352,56 @@ export default function AdminDashboardPage() {
             {/* ================================================= */}
 
             {activeSection === "dashboard" && (
-            <AdminDashboard
-              stats={stats}
-            />
-          )}
-
-          {activeSection === "accounts" && (
-            <AdminAccountManagement />
-          )}
-
-          {activeSection !== "dashboard" &&
-            activeSection !== "accounts" && (
-              <ComingSoonSection
-                section={activeSection}
+              <AdminDashboard
+                stats={stats}
               />
             )}
+
+            {/* ================================================= */}
+            {/* ACCOUNT MANAGEMENT */}
+            {/* ================================================= */}
+
+            {activeSection === "accounts" && (
+              <AdminAccountManagement />
+            )}
+
+            {/* ================================================= */}
+            {/* EQUIPMENT MANAGEMENT */}
+            {/* ================================================= */}
+
+            {activeSection === "equipment" && (
+              <AdminEquipmentManagement />
+            )}
+
+            {/* ================================================= */}
+            {/* BORROWING RECORDS */}
+            {/* ================================================= */}
+
+            {activeSection === "borrowing" && (
+              <AdminBorrowingRecords />
+            )}
+
+            {/* ================================================= */}
+            {/* HISTORY & AUDIT */}
+            {/* ================================================= */}
+
+            {activeSection === "history" && (
+              <AdminHistoryAudit />
+            )}
+
+            {/* ================================================= */}
+            {/* OTHER MODULES */}
+            {/* ================================================= */}
+
+            {activeSection !== "dashboard" &&
+              activeSection !== "accounts" &&
+              activeSection !== "equipment" &&
+              activeSection !== "borrowing" &&
+              activeSection !== "history" && (
+                <ComingSoonSection
+                  section={activeSection}
+                />
+              )}
 
             {/* ================================================= */}
             {/* FOOTER */}

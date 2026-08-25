@@ -169,6 +169,10 @@ export default function StudentHistoryPage() {
   // FETCH HISTORY
   // ============================================================
 
+  // ============================================================
+  // FETCH HISTORY
+  // ============================================================
+
   useEffect(() => {
     // Make sure studentId exists before continuing
     if (!student?.studentId) return;
@@ -199,8 +203,7 @@ export default function StudentHistoryPage() {
         // GET RESPONSE TEXT FIRST
         // ======================================================
 
-        const responseText =
-          await response.text();
+        const responseText = await response.text();
 
         let data: any;
 
@@ -240,6 +243,18 @@ export default function StudentHistoryPage() {
         }
 
         // ======================================================
+        // UPDATE STUDENT INFORMATION
+        // ======================================================
+
+        if (data?.student) {
+          setStudent((currentStudent) => ({
+            ...currentStudent,
+            ...data.student,
+            loggedIn: true,
+          }));
+        }
+
+        // ======================================================
         // GET HISTORY RECORDS
         // ======================================================
 
@@ -267,7 +282,7 @@ export default function StudentHistoryPage() {
     };
 
     fetchHistory();
-  }, [student]);
+  }, [student?.studentId]);
 
   // ============================================================
   // STATUS

@@ -1,6 +1,7 @@
 import connectDB from "@/models/utils/db";
 import Request from "@/models/Request";
-import Teacher from "@/models/Teacher"
+import User from "@/models/User";
+import Teacher from "@/models/Teacher";
 
 export async function GET(req) {
   try {
@@ -14,11 +15,9 @@ export async function GET(req) {
     // GET STUDENT ID
     // =====================================================
 
-    const { searchParams } =
-      new URL(req.url);
+    const { searchParams } = new URL(req.url);
 
-    const studentId =
-      searchParams.get("studentId");
+    const studentId = searchParams.get("studentId");
 
     // =====================================================
     // VALIDATE STUDENT ID
@@ -37,29 +36,63 @@ export async function GET(req) {
       );
     }
 
+    const cleanStudentId = studentId.trim();
+
+    // =====================================================
+    // FIND STUDENT
+    // =====================================================
+
+    const student = await User.findOne({
+      studentId: cleanStudentId,
+    })
+      .select("fullName studentId email course")
+      .lean();
+
+    // =====================================================
+    // CHECK IF STUDENT EXISTS
+    // =====================================================
+
+    if (!student) {
+      return Response.json(
+        {
+          success: false,
+          message: "Student account not found.",
+          history: [],
+        },
+        {
+          status: 404,
+        }
+      );
+    }
+
     // =====================================================
     // FIND STUDENT REQUESTS
     // =====================================================
 
     const requests = await Request.find({
-      studentId: studentId.trim(),
+      studentId: cleanStudentId,
     })
-      .populate(
-        "instructor",
-        "name email"
-      )
+      .populate("instructor", "name email")
       .sort({
         createdAt: -1,
       })
       .lean();
 
     // =====================================================
-    // RETURN HISTORY
+    // RETURN STUDENT + HISTORY
     // =====================================================
 
     return Response.json(
       {
         success: true,
+
+        student: {
+          fullName: student.fullName || "",
+          studentId: student.studentId || cleanStudentId,
+          email: student.email || "",
+          course: student.course || "",
+        },
+
         history: requests,
       },
       {
@@ -67,10 +100,7 @@ export async function GET(req) {
       }
     );
   } catch (error) {
-    console.error(
-      "STUDENT HISTORY ERROR:",
-      error
-    );
+    console.error("STUDENT HISTORY ERROR:", error);
 
     return Response.json(
       {

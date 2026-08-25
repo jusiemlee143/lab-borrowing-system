@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { Suspense, useEffect, useState } from "react"
 import Image from "next/image"
 import { useRouter, useSearchParams } from "next/navigation"
 
@@ -27,10 +27,10 @@ import { Input } from "@/components/ui/input"
 import { Toaster, toast } from "sonner"
 
 // ============================================================
-// MAIN LOGIN PAGE
+// LOGIN PAGE CONTENT
 // ============================================================
 
-export default function LoginPage() {
+function LoginPageContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
 
@@ -106,9 +106,11 @@ export default function LoginPage() {
     try {
       const res = await fetch("/api/auth/lic-login", {
         method: "POST",
+
         headers: {
           "Content-Type": "application/json",
         },
+
         body: JSON.stringify({
           email: cleanEmail,
           password: cleanPassword,
@@ -197,6 +199,7 @@ export default function LoginPage() {
       ====================================================== */}
 
       <div className="pointer-events-none fixed inset-0 overflow-hidden">
+
         {/* Top circuit */}
 
         <div className="absolute left-0 top-[15%] h-px w-[24%] bg-[#800000]/10" />
@@ -282,6 +285,7 @@ export default function LoginPage() {
         "
       >
         <LogOut className="mr-2 h-4 w-4" />
+
         <span>Exit</span>
       </Button>
 
@@ -290,6 +294,7 @@ export default function LoginPage() {
       ====================================================== */}
 
       <main className="relative z-10 flex h-screen items-center justify-center p-4 sm:p-6">
+
         <div
           className="
             grid
@@ -306,6 +311,7 @@ export default function LoginPage() {
             lg:grid-cols-[0.9fr_1.1fr]
           "
         >
+
           {/* ==================================================
               LEFT BRAND PANEL
           ================================================== */}
@@ -323,9 +329,11 @@ export default function LoginPage() {
               lg:justify-between
             "
           >
+
             {/* Decorative elements */}
 
             <div className="pointer-events-none absolute inset-0">
+
               {/* Circuit */}
 
               <div className="absolute left-[20%] top-0 h-full w-px bg-[#FFD700]/10" />
@@ -360,6 +368,7 @@ export default function LoginPage() {
                 className="absolute bottom-28 left-8 h-10 w-10 text-[#FFD700]/20"
                 strokeWidth={1.5}
               />
+
             </div>
 
             {/* ==================================================
@@ -367,6 +376,7 @@ export default function LoginPage() {
             ================================================== */}
 
             <div className="relative z-10">
+
               <div
                 className="
                   flex
@@ -382,6 +392,7 @@ export default function LoginPage() {
                   shadow-[0_15px_45px_rgba(0,0,0,0.22)]
                 "
               >
+
                 <Image
                   src="/logo/OfficialLogo.png"
                   alt="Lab Borrowing System Logo"
@@ -390,7 +401,9 @@ export default function LoginPage() {
                   priority
                   className="h-full w-full object-contain"
                 />
+
               </div>
+
             </div>
 
             {/* ==================================================
@@ -398,20 +411,26 @@ export default function LoginPage() {
             ================================================== */}
 
             <div className="relative z-10 mt-7">
+
               <div className="mb-3 flex items-center gap-2">
+
                 <div className="h-px w-8 bg-[#FFD700]" />
 
                 <span className="text-xs font-semibold uppercase tracking-[0.2em] text-[#FFD700]">
                   Laboratory Management
                 </span>
+
               </div>
 
               <h2 className="text-3xl font-bold leading-tight">
+
                 Lab Borrowing
                 <br />
+
                 <span className="text-[#FFD700]">
                   System
                 </span>
+
               </h2>
 
               <p className="mt-4 max-w-sm text-sm leading-relaxed text-white/70">
@@ -419,6 +438,7 @@ export default function LoginPage() {
                 inventory, and borrowing activities from one
                 centralized platform.
               </p>
+
             </div>
 
             {/* ==================================================
@@ -426,22 +446,29 @@ export default function LoginPage() {
             ================================================== */}
 
             <div className="relative z-10 mt-7 flex items-center gap-3">
+
               <div className="flex items-center gap-2 rounded-lg border border-white/10 bg-white/10 px-3 py-2">
+
                 <Activity className="h-4 w-4 text-[#FFD700]" />
 
                 <span className="text-xs text-white/80">
                   System Ready
                 </span>
+
               </div>
 
               <div className="flex items-center gap-2 rounded-lg border border-white/10 bg-white/10 px-3 py-2">
+
                 <ShieldCheck className="h-4 w-4 text-[#FFD700]" />
 
                 <span className="text-xs text-white/80">
                   Secure Access
                 </span>
+
               </div>
+
             </div>
+
           </section>
 
           {/* ==================================================
@@ -449,14 +476,19 @@ export default function LoginPage() {
           ================================================== */}
 
           <section className="flex min-h-0 flex-col justify-center p-6 sm:p-10 lg:p-12">
+
             <div className="mx-auto w-full max-w-md">
+
               {/* ==================================================
                   MOBILE LOGO
               ================================================== */}
 
               <div className="mb-5 lg:hidden">
+
                 <div className="mx-auto flex h-20 w-28 items-center justify-center rounded-2xl bg-[#800000] p-2.5 shadow-lg">
+
                   <div className="flex h-full w-full items-center justify-center rounded-xl bg-white p-2">
+
                     <Image
                       src="/logo/OfficialLogo.png"
                       alt="Lab Borrowing System Logo"
@@ -465,8 +497,11 @@ export default function LoginPage() {
                       priority
                       className="h-full w-full object-contain"
                     />
+
                   </div>
+
                 </div>
+
               </div>
 
               {/* ==================================================
@@ -474,12 +509,15 @@ export default function LoginPage() {
               ================================================== */}
 
               <div className="mb-7">
+
                 <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-[#800000]/10 bg-[#800000]/5 px-3 py-1.5">
+
                   <ShieldCheck className="h-3.5 w-3.5 text-[#800000]" />
 
                   <span className="text-xs font-semibold uppercase tracking-wider text-[#800000]">
                     Authorized Access
                   </span>
+
                 </div>
 
                 <h1 className="text-3xl font-bold tracking-tight text-[#800000] sm:text-4xl">
@@ -490,6 +528,7 @@ export default function LoginPage() {
                   Sign in to manage your laboratory equipment
                   and borrowing requests.
                 </p>
+
               </div>
 
               {/* ==================================================
@@ -507,15 +546,18 @@ export default function LoginPage() {
                   sm:p-7
                 "
               >
+
                 <form
                   onSubmit={handleSubmit}
                   className="space-y-5"
                 >
+
                   {/* ==================================================
                       EMAIL
                   ================================================== */}
 
                   <div className="space-y-2">
+
                     <label
                       htmlFor="lic-email"
                       className="
@@ -527,11 +569,13 @@ export default function LoginPage() {
                         text-gray-700
                       "
                     >
+
                       <UserRound
                         className="h-4 w-4 text-[#800000]"
                       />
 
                       Email Address
+
                     </label>
 
                     <Input
@@ -557,6 +601,7 @@ export default function LoginPage() {
                         focus:ring-[#800000]/20
                       "
                     />
+
                   </div>
 
                   {/* ==================================================
@@ -564,6 +609,7 @@ export default function LoginPage() {
                   ================================================== */}
 
                   <div className="space-y-2">
+
                     <label
                       htmlFor="lic-password"
                       className="
@@ -575,14 +621,17 @@ export default function LoginPage() {
                         text-gray-700
                       "
                     >
+
                       <Lock
                         className="h-4 w-4 text-[#800000]"
                       />
 
                       Password
+
                     </label>
 
                     <div className="relative">
+
                       <Input
                         id="lic-password"
                         name="password"
@@ -639,13 +688,17 @@ export default function LoginPage() {
                           disabled:opacity-50
                         "
                       >
+
                         {showPassword ? (
                           <EyeOff className="h-5 w-5" />
                         ) : (
                           <Eye className="h-5 w-5" />
                         )}
+
                       </button>
+
                     </div>
+
                   </div>
 
                   {/* ==================================================
@@ -665,11 +718,15 @@ export default function LoginPage() {
                       py-3
                     "
                   >
+
                     <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[#800000]/10">
+
                       <KeyRound className="h-4 w-4 text-[#800000]" />
+
                     </div>
 
                     <div>
+
                       <p className="text-xs font-semibold text-[#800000]">
                         Authorized personnel only
                       </p>
@@ -678,7 +735,9 @@ export default function LoginPage() {
                         Use the credentials provided by the
                         laboratory administrator.
                       </p>
+
                     </div>
+
                   </div>
 
                   {/* ==================================================
@@ -708,8 +767,10 @@ export default function LoginPage() {
                       disabled:opacity-60
                     "
                   >
+
                     {loading ? (
                       <span className="flex items-center justify-center gap-2">
+
                         <span
                           className="
                             h-5
@@ -723,16 +784,22 @@ export default function LoginPage() {
                         />
 
                         Signing in...
+
                       </span>
                     ) : (
                       <span className="flex items-center justify-center gap-2">
+
                         Sign In
 
                         <ArrowRight className="h-4 w-4" />
+
                       </span>
                     )}
+
                   </Button>
+
                 </form>
+
               </div>
 
               {/* ==================================================
@@ -740,21 +807,102 @@ export default function LoginPage() {
               ================================================== */}
 
               <div className="mt-5 flex items-center justify-center gap-2 text-xs text-gray-400">
+
                 <span className="h-1.5 w-1.5 rounded-full bg-green-500" />
 
                 <span>
                   Laboratory Management System
                 </span>
+
               </div>
 
               <p className="mt-2 text-center text-[11px] text-gray-400">
                 Secure access for authorized laboratory
                 personnel
               </p>
+
             </div>
+
           </section>
+
         </div>
+
       </main>
+
     </div>
+  )
+}
+
+// ============================================================
+// MAIN PAGE
+// ============================================================
+
+export default function LoginPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="relative flex h-screen w-full items-center justify-center overflow-hidden bg-[#fafafa]">
+
+          {/* Background grid */}
+
+          <div
+            className="pointer-events-none fixed inset-0 opacity-[0.025]"
+            style={{
+              backgroundImage: `
+                linear-gradient(#800000 1px, transparent 1px),
+                linear-gradient(90deg, #800000 1px, transparent 1px)
+              `,
+              backgroundSize: "36px 36px",
+            }}
+          />
+
+          {/* Loading card */}
+
+          <div className="relative z-10 flex flex-col items-center justify-center">
+
+            <div
+              className="
+                flex
+                h-16
+                w-16
+                items-center
+                justify-center
+                rounded-2xl
+                border
+                border-[#800000]/10
+                bg-white
+                shadow-lg
+              "
+            >
+
+              <span
+                className="
+                  h-7
+                  w-7
+                  animate-spin
+                  rounded-full
+                  border-4
+                  border-[#800000]/20
+                  border-t-[#800000]
+                "
+              />
+
+            </div>
+
+            <p className="mt-4 text-sm font-medium text-gray-500">
+              Loading...
+            </p>
+
+            <p className="mt-1 text-xs text-gray-400">
+              Laboratory Management System
+            </p>
+
+          </div>
+
+        </div>
+      }
+    >
+      <LoginPageContent />
+    </Suspense>
   )
 }

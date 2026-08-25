@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { Suspense, useState } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
@@ -18,7 +18,11 @@ import {
 } from "lucide-react"
 import { Toaster, toast } from "sonner"
 
-export default function AdminResetPasswordPage() {
+// ============================================================
+// RESET PASSWORD CONTENT
+// ============================================================
+
+function AdminResetPasswordContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
 
@@ -26,7 +30,7 @@ export default function AdminResetPasswordPage() {
   // GET RESET TOKEN FROM URL
   // ============================================================
 
-  const token = searchParams?.get("token") ?? null
+  const token = searchParams.get("token")
 
   // ============================================================
   // FORM STATE
@@ -50,20 +54,12 @@ export default function AdminResetPasswordPage() {
   ) => {
     e.preventDefault()
 
-    // ==========================================================
-    // CHECK TOKEN
-    // ==========================================================
-
     if (!token) {
       toast.error(
         "This password reset link is invalid or missing."
       )
       return
     }
-
-    // ==========================================================
-    // CHECK PASSWORD FIELDS
-    // ==========================================================
 
     if (!newPassword.trim() || !confirmPassword.trim()) {
       toast.error(
@@ -72,10 +68,6 @@ export default function AdminResetPasswordPage() {
       return
     }
 
-    // ==========================================================
-    // PASSWORD LENGTH
-    // ==========================================================
-
     if (newPassword.length < 8) {
       toast.error(
         "Password must be at least 8 characters long."
@@ -83,51 +75,21 @@ export default function AdminResetPasswordPage() {
       return
     }
 
-    // ==========================================================
-    // PASSWORD MATCH
-    // ==========================================================
-
     if (newPassword !== confirmPassword) {
       toast.error("Passwords do not match.")
       return
     }
 
-    // ==========================================================
-    // START LOADING
-    // ==========================================================
-
     setLoading(true)
 
     try {
-      // ========================================================
-      // SEND RESET REQUEST
-      //
-      // IMPORTANT:
-      //
-      // The API expects:
-      //
-      // {
-      //   token,
-      //   password
-      // }
-      //
-      // NOT:
-      //
-      // {
-      //   token,
-      //   newPassword
-      // }
-      // ========================================================
-
       const res = await fetch(
         "/api/auth/admin-reset-pass",
         {
           method: "POST",
-
           headers: {
             "Content-Type": "application/json",
           },
-
           body: JSON.stringify({
             token,
             password: newPassword,
@@ -137,25 +99,15 @@ export default function AdminResetPasswordPage() {
 
       const data = await res.json()
 
-      // ========================================================
-      // HANDLE ERROR
-      // ========================================================
-
       if (!res.ok) {
         toast.error(
           data.message ||
             "Unable to reset your password."
         )
-
         return
       }
 
-      // ========================================================
-      // SUCCESS
-      // ========================================================
-
       setSuccess(true)
-
       setNewPassword("")
       setConfirmPassword("")
 
@@ -177,7 +129,7 @@ export default function AdminResetPasswordPage() {
   }
 
   // ============================================================
-  // INVALID / MISSING TOKEN SCREEN
+  // INVALID / MISSING TOKEN
   // ============================================================
 
   if (!token) {
@@ -191,8 +143,6 @@ export default function AdminResetPasswordPage() {
             className: "rounded-xl",
           }}
         />
-
-        {/* BACKGROUND */}
 
         <div
           className="fixed inset-0 pointer-events-none opacity-[0.035]"
@@ -209,13 +159,9 @@ export default function AdminResetPasswordPage() {
 
         <div className="fixed -bottom-32 -right-32 w-80 h-80 rounded-full bg-[#FFD700]/10 blur-3xl pointer-events-none" />
 
-        {/* HEADER */}
-
         <div className="fixed top-0 left-0 right-0 z-50">
           <div className="h-[3px] bg-gradient-to-r from-[#800000] via-[#FFD700] to-[#800000]" />
         </div>
-
-        {/* CENTER */}
 
         <main className="relative z-10 h-full flex items-center justify-center px-4 py-4">
 
@@ -227,8 +173,6 @@ export default function AdminResetPasswordPage() {
 
               <div className="p-6 sm:p-8">
 
-                {/* ICON */}
-
                 <div className="flex justify-center mb-5">
 
                   <div className="w-16 h-16 rounded-2xl bg-red-50 border border-red-100 flex items-center justify-center">
@@ -238,8 +182,6 @@ export default function AdminResetPasswordPage() {
                   </div>
 
                 </div>
-
-                {/* TEXT */}
 
                 <div className="text-center">
 
@@ -253,8 +195,6 @@ export default function AdminResetPasswordPage() {
                   </p>
 
                 </div>
-
-                {/* BUTTON */}
 
                 <Button
                   type="button"
@@ -302,8 +242,6 @@ export default function AdminResetPasswordPage() {
           }}
         />
 
-        {/* BACKGROUND */}
-
         <div
           className="fixed inset-0 pointer-events-none opacity-[0.035]"
           style={{
@@ -319,13 +257,9 @@ export default function AdminResetPasswordPage() {
 
         <div className="fixed -bottom-32 -right-32 w-80 h-80 rounded-full bg-[#FFD700]/10 blur-3xl pointer-events-none" />
 
-        {/* HEADER */}
-
         <div className="fixed top-0 left-0 right-0 z-50">
           <div className="h-[3px] bg-gradient-to-r from-[#800000] via-[#FFD700] to-[#800000]" />
         </div>
-
-        {/* CENTER */}
 
         <main className="relative z-10 h-full flex items-center justify-center px-4 py-4">
 
@@ -337,8 +271,6 @@ export default function AdminResetPasswordPage() {
 
               <div className="p-6 sm:p-8">
 
-                {/* SUCCESS ICON */}
-
                 <div className="flex justify-center mb-5">
 
                   <div className="w-16 h-16 rounded-2xl bg-green-50 border border-green-100 flex items-center justify-center">
@@ -348,8 +280,6 @@ export default function AdminResetPasswordPage() {
                   </div>
 
                 </div>
-
-                {/* TEXT */}
 
                 <div className="text-center">
 
@@ -363,8 +293,6 @@ export default function AdminResetPasswordPage() {
                   </p>
 
                 </div>
-
-                {/* LOGIN BUTTON */}
 
                 <Button
                   type="button"
@@ -411,10 +339,6 @@ export default function AdminResetPasswordPage() {
         }}
       />
 
-      {/* ====================================================== */}
-      {/* BACKGROUND */}
-      {/* ====================================================== */}
-
       <div
         className="fixed inset-0 pointer-events-none opacity-[0.035]"
         style={{
@@ -430,25 +354,13 @@ export default function AdminResetPasswordPage() {
 
       <div className="fixed -bottom-32 -right-32 w-80 h-80 rounded-full bg-[#FFD700]/10 blur-3xl pointer-events-none" />
 
-      {/* ====================================================== */}
-      {/* HEADER */}
-      {/* ====================================================== */}
-
       <div className="fixed top-0 left-0 right-0 z-50">
         <div className="h-[3px] bg-gradient-to-r from-[#800000] via-[#FFD700] to-[#800000]" />
       </div>
 
-      {/* ====================================================== */}
-      {/* CENTER */}
-      {/* ====================================================== */}
-
       <main className="relative z-10 h-full flex items-center justify-center px-4 py-4 sm:px-6">
 
         <div className="w-full max-w-[430px]">
-
-          {/* ================================================== */}
-          {/* CARD */}
-          {/* ================================================== */}
 
           <div
             className="
@@ -462,15 +374,11 @@ export default function AdminResetPasswordPage() {
             "
           >
 
-            {/* TOP ACCENT */}
-
             <div className="h-1 bg-gradient-to-r from-[#800000] via-[#FFD700] to-[#800000]" />
 
             <div className="p-6 sm:p-8">
 
-              {/* ================================================= */}
               {/* LOGO */}
-              {/* ================================================= */}
 
               <div className="flex justify-center mb-5">
 
@@ -518,9 +426,7 @@ export default function AdminResetPasswordPage() {
 
               </div>
 
-              {/* ================================================= */}
               {/* SYSTEM LABEL */}
-              {/* ================================================= */}
 
               <div className="flex justify-center mb-3">
 
@@ -548,9 +454,7 @@ export default function AdminResetPasswordPage() {
 
               </div>
 
-              {/* ================================================= */}
               {/* TITLE */}
-              {/* ================================================= */}
 
               <div className="text-center mb-7">
 
@@ -574,18 +478,14 @@ export default function AdminResetPasswordPage() {
 
               </div>
 
-              {/* ================================================= */}
               {/* FORM */}
-              {/* ================================================= */}
 
               <form
                 onSubmit={handleResetPassword}
                 className="space-y-5"
               >
 
-                {/* ================================================= */}
                 {/* NEW PASSWORD */}
-                {/* ================================================= */}
 
                 <div className="space-y-2">
 
@@ -687,9 +587,7 @@ export default function AdminResetPasswordPage() {
 
                 </div>
 
-                {/* ================================================= */}
                 {/* CONFIRM PASSWORD */}
-                {/* ================================================= */}
 
                 <div className="space-y-2">
 
@@ -789,9 +687,7 @@ export default function AdminResetPasswordPage() {
 
                 </div>
 
-                {/* ================================================= */}
                 {/* RESET BUTTON */}
-                {/* ================================================= */}
 
                 <Button
                   type="submit"
@@ -844,9 +740,7 @@ export default function AdminResetPasswordPage() {
 
               </form>
 
-              {/* ================================================= */}
               {/* SECURITY INFO */}
-              {/* ================================================= */}
 
               <div className="mt-6 pt-5 border-t border-gray-100">
 
@@ -878,9 +772,7 @@ export default function AdminResetPasswordPage() {
 
           </div>
 
-          {/* ================================================== */}
           {/* FOOTER */}
-          {/* ================================================== */}
 
           <div className="mt-4 flex items-center justify-center gap-2">
 
@@ -897,5 +789,49 @@ export default function AdminResetPasswordPage() {
       </main>
 
     </div>
+  )
+}
+
+// ============================================================
+// LOADING FALLBACK
+// ============================================================
+
+function ResetPasswordLoading() {
+  return (
+    <div className="h-screen w-full flex items-center justify-center bg-[#fafafa]">
+
+      <div className="flex flex-col items-center gap-4">
+
+        <div
+          className="
+            w-10
+            h-10
+            rounded-full
+            border-4
+            border-[#800000]/20
+            border-t-[#800000]
+            animate-spin
+          "
+        />
+
+        <p className="text-sm text-gray-500">
+          Loading password reset...
+        </p>
+
+      </div>
+
+    </div>
+  )
+}
+
+// ============================================================
+// PAGE
+// ============================================================
+
+export default function AdminResetPasswordPage() {
+  return (
+    <Suspense fallback={<ResetPasswordLoading />}>
+      <AdminResetPasswordContent />
+    </Suspense>
   )
 }

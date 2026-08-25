@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { Suspense, useEffect, useState } from "react"
 import Image from "next/image"
 import { useRouter, useSearchParams } from "next/navigation"
 import {
@@ -66,10 +66,16 @@ function formatStudentId(value: string) {
 }
 
 // ============================================================
-// STUDENT LOGIN PAGE
+// LOGIN CONTENT
+// ============================================================
+//
+// IMPORTANT:
+// useSearchParams() is used inside this component.
+// The component is rendered inside <Suspense> below.
+// This fixes the Next.js 16 production build error.
 // ============================================================
 
-export default function StudentLoginPage() {
+function StudentLoginContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
 
@@ -84,7 +90,7 @@ export default function StudentLoginPage() {
   // ============================================================
 
   useEffect(() => {
-    const error = searchParams?.get("error")
+    const error = searchParams.get("error")
 
     if (error === "login-required") {
       toast.error(
@@ -839,9 +845,9 @@ export default function StudentLoginPage() {
                         font-semibold
                         text-[#800000]
                         transition-all
+                        hover:border-[#800000]
                         hover:bg-[#800000]
                         hover:text-[#FFD700]
-                        hover:border-[#800000]
                       "
                     >
                       <User className="mr-2 h-4 w-4" />
@@ -865,5 +871,43 @@ export default function StudentLoginPage() {
         </div>
       </main>
     </div>
+  )
+}
+
+// ============================================================
+// PAGE WRAPPER
+// ============================================================
+//
+// Next.js 16 requires useSearchParams() to be inside
+// a Suspense boundary during production builds.
+// ============================================================
+
+export default function StudentLoginPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex h-screen w-full items-center justify-center bg-[#fafafa]">
+          <div className="flex flex-col items-center gap-3">
+            <div
+              className="
+                h-8
+                w-8
+                animate-spin
+                rounded-full
+                border-4
+                border-[#800000]/20
+                border-t-[#800000]
+              "
+            />
+
+            <p className="text-sm text-gray-500">
+              Loading...
+            </p>
+          </div>
+        </div>
+      }
+    >
+      <StudentLoginContent />
+    </Suspense>
   )
 }

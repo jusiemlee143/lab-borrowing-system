@@ -1,6 +1,11 @@
 "use client"
 
-import { useState, useEffect, type FormEvent } from "react"
+import {
+  Suspense,
+  useState,
+  useEffect,
+  type FormEvent,
+} from "react"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { useRouter, useSearchParams } from "next/navigation"
@@ -18,7 +23,7 @@ import {
 } from "lucide-react"
 import { Toaster, toast } from "sonner"
 
-export default function AdminLoginPage() {
+function AdminLoginContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
 
@@ -808,5 +813,34 @@ export default function AdminLoginPage() {
       </main>
 
     </div>
+  )
+}
+export default function AdminLoginPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="h-screen w-full flex items-center justify-center bg-[#fafafa]">
+          <div className="flex flex-col items-center gap-3">
+            <div
+              className="
+                w-8
+                h-8
+                rounded-full
+                border-4
+                border-[#800000]/20
+                border-t-[#800000]
+                animate-spin
+              "
+            />
+
+            <p className="text-sm text-gray-500">
+              Loading...
+            </p>
+          </div>
+        </div>
+      }
+    >
+      <AdminLoginContent />
+    </Suspense>
   )
 }

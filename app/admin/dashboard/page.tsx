@@ -106,12 +106,13 @@ export default function AdminDashboardPage() {
       setRefreshing(true);
 
       // --------------------------------------------------------
-      // Fetch LIC and teacher accounts
+      // Fetch all dashboard information
       // --------------------------------------------------------
 
       const [
         licsRes,
         teachersRes,
+        dashboardRes,
       ] = await Promise.all([
         fetch("/api/admin/lics", {
           cache: "no-store",
@@ -120,7 +121,33 @@ export default function AdminDashboardPage() {
         fetch("/api/admin/teachers", {
           cache: "no-store",
         }),
+
+        fetch("/api/admin/dashboard", {
+          cache: "no-store",
+        }),
       ]);
+
+      // --------------------------------------------------------
+      // Check HTTP responses
+      // --------------------------------------------------------
+
+      if (!licsRes.ok) {
+        throw new Error(
+          "Failed to fetch Lab-in-Charge accounts."
+        );
+      }
+
+      if (!teachersRes.ok) {
+        throw new Error(
+          "Failed to fetch teacher accounts."
+        );
+      }
+
+      if (!dashboardRes.ok) {
+        throw new Error(
+          "Failed to fetch system statistics."
+        );
+      }
 
       // --------------------------------------------------------
       // Parse responses
@@ -132,23 +159,90 @@ export default function AdminDashboardPage() {
       const teachersData =
         await teachersRes.json();
 
+      const dashboardData =
+        await dashboardRes.json();
+
       // --------------------------------------------------------
-      // Update statistics
+      // Debug
       // --------------------------------------------------------
 
-      setStats((previous) => ({
-        ...previous,
+      console.log(
+        "Admin Dashboard - LIC:",
+        licsData
+      );
 
-        totalLIC:
-          Array.isArray(licsData)
-            ? licsData.length
-            : previous.totalLIC,
+      console.log(
+        "Admin Dashboard - Teachers:",
+        teachersData
+      );
 
-        totalTeachers:
-          Array.isArray(teachersData)
-            ? teachersData.length
-            : previous.totalTeachers,
-      }));
+      console.log(
+        "Admin Dashboard - System:",
+        dashboardData
+      );
+
+      // --------------------------------------------------------
+      // Validate dashboard API response
+      // --------------------------------------------------------
+
+      if (
+        !dashboardData ||
+        dashboardData.success !== true ||
+        !dashboardData.stats
+      ) {
+        throw new Error(
+          dashboardData?.message ||
+            "Invalid dashboard statistics response."
+        );
+      }
+
+      // --------------------------------------------------------
+      // Update ALL statistics
+      // --------------------------------------------------------
+
+      setStats({
+        // ACCOUNT OVERVIEW
+
+        totalLIC: Array.isArray(licsData)
+          ? licsData.length
+          : 0,
+
+        totalTeachers: Array.isArray(teachersData)
+          ? teachersData.length
+          : 0,
+
+        totalStudents:
+          Number(
+            dashboardData.stats.totalStudents
+          ) || 0,
+
+        // SYSTEM OVERVIEW
+
+        totalTools:
+          Number(
+            dashboardData.stats.totalTools
+          ) || 0,
+
+        pendingRequests:
+          Number(
+            dashboardData.stats.pendingRequests
+          ) || 0,
+
+        activeBorrowings:
+          Number(
+            dashboardData.stats.activeBorrowings
+          ) || 0,
+
+        lowStockTools:
+          Number(
+            dashboardData.stats.lowStockTools
+          ) || 0,
+
+        totalHistory:
+          Number(
+            dashboardData.stats.totalHistory
+          ) || 0,
+      });
     } catch (error) {
       console.error(
         "Admin dashboard fetch error:",
@@ -156,7 +250,9 @@ export default function AdminDashboardPage() {
       );
 
       toast.error(
-        "Unable to load dashboard data."
+        error instanceof Error
+          ? error.message
+          : "Unable to load dashboard data."
       );
     } finally {
       setLoading(false);

@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import {
   Activity,
+  AlertTriangle,
   CheckCircle2,
   Edit3,
   Eye,
@@ -12,8 +13,10 @@ import {
   Save,
   Search,
   ShieldCheck,
+  Trash2,
   UserCog,
   Users,
+  UserX,
   X,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -34,6 +37,7 @@ interface LICAccount {
   emailVerified?: boolean;
   role?: string;
   mustChangePassword?: boolean;
+  isActive?: boolean;
   createdAt?: string;
   updatedAt?: string;
 }
@@ -59,6 +63,7 @@ interface AccountRow {
   email: string;
   contactNumber: string;
   verified: boolean;
+  isActive: boolean;
   createdAt?: string;
 }
 
@@ -99,6 +104,8 @@ export default function AdminAccountManagement() {
   const [creatingLIC, setCreatingLIC] = useState(false);
   const [savingEdit, setSavingEdit] = useState(false);
   const [creatingTeacher, setCreatingTeacher] = useState(false);
+  const [changingStatus, setChangingStatus] = useState(false);
+  const [deletingAccount, setDeletingAccount] = useState(false);
 
   const [showCreateLIC, setShowCreateLIC] = useState(false);
   const [showAddTeacher, setShowAddTeacher] = useState(false);
@@ -110,6 +117,9 @@ export default function AdminAccountManagement() {
     useState<AccountRow | null>(null);
 
   const [editingAccount, setEditingAccount] =
+    useState<AccountRow | null>(null);
+
+  const [accountToDelete, setAccountToDelete] =
     useState<AccountRow | null>(null);
 
   const [licForm, setLICForm] = useState<LICFormData>({
@@ -213,7 +223,7 @@ export default function AdminAccountManagement() {
     });
   };
 
-  const generateTempPassword = () => {
+  const generatePassword = () => {
     const characters =
       "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789";
 
@@ -225,31 +235,24 @@ export default function AdminAccountManagement() {
       );
     }
 
+    return password;
+  };
+
+  const generateTempPassword = () => {
     setLICForm((previous) => ({
       ...previous,
-      tempPassword: password,
+      tempPassword: generatePassword(),
     }));
   };
 
   const openCreateLIC = () => {
-    const characters =
-      "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789";
-
-    let password = "";
-
-    for (let i = 0; i < 10; i++) {
-      password += characters.charAt(
-        Math.floor(Math.random() * characters.length)
-      );
-    }
-
     setLICForm({
       fullName: "",
       employeeId: "",
       department: "",
       contactNumber: "",
       email: "",
-      tempPassword: password,
+      tempPassword: generatePassword(),
     });
 
     setShowCreateLIC(true);
@@ -619,6 +622,121 @@ export default function AdminAccountManagement() {
   };
 
   // ============================================================
+  // ENABLE / DISABLE LIC
+  // ============================================================
+
+  const handleToggleLICStatus = async (
+    account: AccountRow
+  ) => {
+    if (account.type !== "Lab-in-Charge") {
+      return;
+    }
+
+    const newStatus = !account.isActive;
+
+    try {
+      setChangingStatus(true);
+
+      const response = await fetch(
+        `/api/admin/toggle-lic/${account.id}`,
+        {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            isActive: newStatus,
+          }),
+        }
+      );
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(
+          result?.message ||
+            result?.error ||
+            `Failed to ${
+              newStatus ? "enable" : "disable"
+            } LIC account.`
+        );
+      }
+
+      toast.success(
+        newStatus
+          ? "LIC account enabled successfully."
+          : "LIC account disabled successfully."
+      );
+
+      setSelectedAccount(null);
+
+      await fetchAccounts();
+    } catch (error) {
+      console.error("Toggle LIC status error:", error);
+
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Failed to update LIC account status."
+      );
+    } finally {
+      setChangingStatus(false);
+    }
+  };
+
+  // ============================================================
+  // DELETE LIC
+  // ============================================================
+
+  const handleDeleteLIC = async () => {
+    if (!accountToDelete) {
+      return;
+    }
+
+    if (accountToDelete.type !== "Lab-in-Charge") {
+      return;
+    }
+
+    try {
+      setDeletingAccount(true);
+
+      const response = await fetch(
+        `/api/admin/lics/${accountToDelete.id}`,
+        {
+          method: "DELETE",
+        }
+      );
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(
+          result?.message ||
+            result?.error ||
+            "Failed to delete LIC account."
+        );
+      }
+
+      toast.success("LIC account deleted permanently.");
+
+      setAccountToDelete(null);
+      setSelectedAccount(null);
+
+      await fetchAccounts();
+    } catch (error) {
+      console.error("Delete LIC error:", error);
+
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Failed to delete LIC account."
+      );
+    } finally {
+      setDeletingAccount(false);
+    }
+  };
+
+  // ============================================================
   // COMMON ACCOUNT ROWS
   // ============================================================
 
@@ -632,6 +750,7 @@ export default function AdminAccountManagement() {
       email: account.email || "—",
       contactNumber: account.contactNumber || "—",
       verified: account.emailVerified ?? false,
+      isActive: account.isActive !== false,
       createdAt: account.createdAt,
     }));
 
@@ -644,6 +763,7 @@ export default function AdminAccountManagement() {
       email: teacher.email || "—",
       contactNumber: "—",
       verified: true,
+      isActive: true,
       createdAt: teacher.createdAt,
     }));
 
@@ -690,6 +810,14 @@ export default function AdminAccountManagement() {
 
   const totalAccounts =
     licAccounts.length + teacherAccounts.length;
+
+  const activeLICCount = licAccounts.filter(
+    (account) => account.isActive !== false
+  ).length;
+
+  const disabledLICCount = licAccounts.filter(
+    (account) => account.isActive === false
+  ).length;
 
   // ============================================================
   // FORMAT DATE
@@ -809,18 +937,18 @@ export default function AdminAccountManagement() {
             />
 
             <AccountStatCard
-              title="Teachers"
-              value={teacherAccounts.length}
-              label="teacher accounts"
-              icon={<UserCog className="h-5 w-5" />}
-              accent="blue"
+              title="Active LIC"
+              value={activeLICCount}
+              label="active accounts"
+              icon={<CheckCircle2 className="h-5 w-5" />}
+              accent="green"
             />
 
             <AccountStatCard
-              title="Students"
-              value="—"
-              label="in development"
-              icon={<Users className="h-5 w-5" />}
+              title="Disabled LIC"
+              value={disabledLICCount}
+              label="disabled accounts"
+              icon={<UserX className="h-5 w-5" />}
               accent="gray"
             />
           </div>
@@ -963,8 +1091,8 @@ export default function AdminAccountManagement() {
                   </p>
 
                   <p className="mt-1 text-xs leading-5 text-gray-500">
-                    Account information can be managed securely.
-                    Passwords and sensitive authentication data are
+                    Disabled LIC accounts cannot log in. Account
+                    passwords and sensitive authentication data are
                     never displayed.
                   </p>
                 </div>
@@ -1020,8 +1148,16 @@ export default function AdminAccountManagement() {
         <AccountDetailsModal
           account={selectedAccount}
           formatDate={formatDate}
+          changingStatus={changingStatus}
           onClose={() => setSelectedAccount(null)}
           onEdit={() => openEditLIC(selectedAccount)}
+          onToggleStatus={() =>
+            handleToggleLICStatus(selectedAccount)
+          }
+          onDelete={() => {
+            setAccountToDelete(selectedAccount);
+            setSelectedAccount(null);
+          }}
         />
       )}
 
@@ -1039,6 +1175,21 @@ export default function AdminAccountManagement() {
               setEditingAccount(null);
             }
           }}
+        />
+      )}
+
+      {/* DELETE CONFIRMATION */}
+
+      {accountToDelete && (
+        <DeleteLICConfirmationModal
+          account={accountToDelete}
+          loading={deletingAccount}
+          onCancel={() => {
+            if (!deletingAccount) {
+              setAccountToDelete(null);
+            }
+          }}
+          onConfirm={handleDeleteLIC}
         />
       )}
     </>
@@ -1303,8 +1454,6 @@ function AddTeacherModal({
       />
 
       <div className="relative z-10 w-full max-w-lg overflow-hidden rounded-2xl border border-blue-100 bg-white shadow-2xl">
-        {/* HEADER */}
-
         <div className="border-b border-gray-100 bg-blue-50/40 px-5 py-4">
           <div className="flex items-center justify-between gap-4">
             <div className="flex items-center gap-3">
@@ -1333,8 +1482,6 @@ function AddTeacherModal({
             </button>
           </div>
         </div>
-
-        {/* FORM */}
 
         <form onSubmit={onSubmit}>
           <div className="space-y-5 p-5">
@@ -1386,8 +1533,6 @@ function AddTeacherModal({
               </p>
             </FormField>
           </div>
-
-          {/* FOOTER */}
 
           <div className="flex flex-col-reverse gap-2 border-t border-gray-100 bg-gray-50/50 px-5 py-4 sm:flex-row sm:justify-end">
             <button
@@ -1626,6 +1771,356 @@ function EditLICModal({
 }
 
 // ============================================================
+// ACCOUNT DETAILS MODAL
+// ============================================================
+
+function AccountDetailsModal({
+  account,
+  formatDate,
+  changingStatus,
+  onClose,
+  onEdit,
+  onToggleStatus,
+  onDelete,
+}: {
+  account: AccountRow;
+  formatDate: (date?: string) => string;
+  changingStatus: boolean;
+  onClose: () => void;
+  onEdit: () => void;
+  onToggleStatus: () => void;
+  onDelete: () => void;
+}) {
+  const canManage = account.type === "Lab-in-Charge";
+
+  return (
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 px-4 py-6 backdrop-blur-[2px]">
+      <button
+        type="button"
+        aria-label="Close account details"
+        onClick={onClose}
+        className="absolute inset-0 cursor-default"
+      />
+
+      <div className="relative z-10 w-full max-w-lg overflow-hidden rounded-2xl border border-[#800000]/10 bg-white shadow-2xl">
+        {/* HEADER */}
+
+        <div className="border-b border-gray-100 bg-[#800000]/[0.025] px-5 py-4">
+          <div className="flex items-center justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <div
+                className={`flex h-11 w-11 items-center justify-center rounded-xl ${
+                  account.type === "Lab-in-Charge"
+                    ? "bg-[#800000]/5 text-[#800000]"
+                    : "bg-blue-50 text-blue-600"
+                }`}
+              >
+                {account.type === "Lab-in-Charge" ? (
+                  <ShieldCheck className="h-5 w-5" />
+                ) : (
+                  <UserCog className="h-5 w-5" />
+                )}
+              </div>
+
+              <div>
+                <p className="text-xs font-medium uppercase tracking-wider text-gray-400">
+                  Account Details
+                </p>
+
+                <h3 className="mt-0.5 text-base font-bold text-[#800000]">
+                  {account.name}
+                </h3>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={onClose}
+              className="rounded-lg p-2 text-gray-400 transition hover:bg-gray-100 hover:text-gray-700"
+            >
+              <X className="h-5 w-5" />
+            </button>
+          </div>
+        </div>
+
+        {/* CONTENT */}
+
+        <div className="max-h-[70vh] overflow-y-auto p-5">
+          <div className="mb-5 flex flex-wrap items-center gap-2">
+            <AccountTypeBadge type={account.type} />
+            <StatusBadge
+              verified={account.verified}
+              isActive={account.isActive}
+            />
+          </div>
+
+          <div className="grid gap-3 sm:grid-cols-2">
+            <DetailItem
+              label="Full Name"
+              value={account.name}
+            />
+
+            <DetailItem
+              label="Account Type"
+              value={account.type}
+            />
+
+            <DetailItem
+              label="Employee / Student ID"
+              value={account.identifier}
+            />
+
+            <DetailItem
+              label="Department"
+              value={account.department}
+            />
+
+            <DetailItem
+              label="Email"
+              value={account.email}
+            />
+
+            <DetailItem
+              label="Contact Number"
+              value={account.contactNumber}
+            />
+
+            <DetailItem
+              label="Email Status"
+              value={
+                account.verified
+                  ? "Verified"
+                  : "Not verified"
+              }
+            />
+
+            <DetailItem
+              label="Account Status"
+              value={
+                account.isActive
+                  ? "Active"
+                  : "Disabled"
+              }
+            />
+
+            <DetailItem
+              label="Registered"
+              value={formatDate(account.createdAt)}
+            />
+          </div>
+
+          <div className="mt-5 rounded-xl border border-[#800000]/10 bg-[#800000]/[0.025] p-4">
+            <div className="flex items-start gap-3">
+              <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-[#800000]" />
+
+              <div>
+                <p className="text-xs font-semibold text-[#800000]">
+                  Security Information
+                </p>
+
+                <p className="mt-1 text-[11px] leading-5 text-gray-500">
+                  Passwords and authentication credentials are
+                  hidden and are never displayed in this interface.
+                  Disabling an LIC prevents the account from
+                  logging in without deleting the account.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* FOOTER */}
+
+        <div className="border-t border-gray-100 bg-gray-50/50 px-5 py-4">
+          {canManage ? (
+            <div className="flex flex-col gap-2">
+              <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
+                <button
+                  type="button"
+                  onClick={onClose}
+                  disabled={changingStatus}
+                  className="rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-600 transition hover:bg-gray-100 disabled:opacity-50"
+                >
+                  Close
+                </button>
+
+                <button
+                  type="button"
+                  onClick={onEdit}
+                  disabled={changingStatus}
+                  className="inline-flex items-center justify-center gap-2 rounded-lg bg-[#800000] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#650000] disabled:opacity-50"
+                >
+                  <Edit3 className="h-4 w-4" />
+                  Edit LIC
+                </button>
+
+                <button
+                  type="button"
+                  onClick={onToggleStatus}
+                  disabled={changingStatus}
+                  className={`inline-flex items-center justify-center gap-2 rounded-lg border px-4 py-2 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-50 ${
+                    account.isActive
+                      ? "border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100"
+                      : "border-green-200 bg-green-50 text-green-700 hover:bg-green-100"
+                  }`}
+                >
+                  {changingStatus ? (
+                    <RefreshCw className="h-4 w-4 animate-spin" />
+                  ) : account.isActive ? (
+                    <UserX className="h-4 w-4" />
+                  ) : (
+                    <CheckCircle2 className="h-4 w-4" />
+                  )}
+
+                  {changingStatus
+                    ? "Updating..."
+                    : account.isActive
+                    ? "Disable"
+                    : "Enable"}
+                </button>
+              </div>
+
+              <button
+                type="button"
+                onClick={onDelete}
+                disabled={changingStatus}
+                className="inline-flex items-center justify-center gap-2 rounded-lg border border-red-200 bg-red-50 px-4 py-2 text-sm font-semibold text-red-600 transition hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                <Trash2 className="h-4 w-4" />
+                Permanently Delete Account
+              </button>
+            </div>
+          ) : (
+            <div className="flex justify-end">
+              <button
+                type="button"
+                onClick={onClose}
+                className="rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-600 transition hover:bg-gray-100"
+              >
+                Close
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ============================================================
+// DELETE CONFIRMATION MODAL
+// ============================================================
+
+function DeleteLICConfirmationModal({
+  account,
+  loading,
+  onCancel,
+  onConfirm,
+}: {
+  account: AccountRow;
+  loading: boolean;
+  onCancel: () => void;
+  onConfirm: () => void;
+}) {
+  return (
+    <div className="fixed inset-0 z-[150] flex items-center justify-center bg-black/50 px-4 py-6 backdrop-blur-[2px]">
+      <button
+        type="button"
+        aria-label="Close delete confirmation"
+        onClick={onCancel}
+        disabled={loading}
+        className="absolute inset-0 cursor-default"
+      />
+
+      <div className="relative z-10 w-full max-w-md overflow-hidden rounded-2xl border border-red-100 bg-white shadow-2xl">
+        <div className="border-b border-red-100 bg-red-50/50 px-5 py-5">
+          <div className="flex items-start gap-3">
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-red-100 text-red-600">
+              <AlertTriangle className="h-5 w-5" />
+            </div>
+
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-wider text-red-500">
+                Permanent Action
+              </p>
+
+              <h3 className="mt-0.5 text-base font-bold text-red-700">
+                Delete LIC Account?
+              </h3>
+            </div>
+          </div>
+        </div>
+
+        <div className="space-y-4 p-5">
+          <div className="rounded-xl border border-gray-100 bg-gray-50 p-4">
+            <p className="text-xs font-bold uppercase tracking-wider text-gray-400">
+              Account
+            </p>
+
+            <p className="mt-1 text-sm font-semibold text-gray-800">
+              {account.name}
+            </p>
+
+            <p className="mt-0.5 text-xs text-gray-500">
+              {account.email}
+            </p>
+
+            {account.identifier !== "—" && (
+              <p className="mt-0.5 font-mono text-xs text-gray-400">
+                {account.identifier}
+              </p>
+            )}
+          </div>
+
+          <div className="rounded-xl border border-red-100 bg-red-50/50 p-4">
+            <p className="text-xs font-semibold text-red-700">
+              This action cannot be undone.
+            </p>
+
+            <p className="mt-1 text-[11px] leading-5 text-red-600/80">
+              The LIC account will be permanently removed from
+              the database. If you only want to prevent the LIC
+              from logging in temporarily, use{" "}
+              <strong>Disable</strong> instead.
+            </p>
+          </div>
+        </div>
+
+        <div className="flex flex-col-reverse gap-2 border-t border-gray-100 bg-gray-50/50 px-5 py-4 sm:flex-row sm:justify-end">
+          <button
+            type="button"
+            onClick={onCancel}
+            disabled={loading}
+            className="rounded-lg border border-gray-200 bg-white px-4 py-2.5 text-sm font-medium text-gray-600 transition hover:bg-gray-100 disabled:opacity-50"
+          >
+            Cancel
+          </button>
+
+          <button
+            type="button"
+            onClick={onConfirm}
+            disabled={loading}
+            className="inline-flex items-center justify-center gap-2 rounded-lg bg-red-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {loading ? (
+              <>
+                <RefreshCw className="h-4 w-4 animate-spin" />
+                Deleting...
+              </>
+            ) : (
+              <>
+                <Trash2 className="h-4 w-4" />
+                Delete Permanently
+              </>
+            )}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ============================================================
 // FORM FIELD
 // ============================================================
 
@@ -1695,7 +2190,7 @@ function AccountStatCard({
   value: number | string;
   label: string;
   icon: React.ReactNode;
-  accent: "maroon" | "gold" | "blue" | "gray";
+  accent: "maroon" | "gold" | "blue" | "gray" | "green";
 }) {
   const styles = {
     maroon: {
@@ -1721,6 +2216,12 @@ function AccountStatCard({
       iconBg: "bg-gray-50",
       iconColor: "text-gray-500",
       value: "text-gray-600",
+    },
+    green: {
+      border: "border-green-100",
+      iconBg: "bg-green-50",
+      iconColor: "text-green-600",
+      value: "text-green-600",
     },
   };
 
@@ -1831,7 +2332,7 @@ function AccountTable({
 }) {
   return (
     <div className="overflow-x-auto">
-      <table className="w-full min-w-[850px] text-left">
+      <table className="w-full min-w-[900px] text-left">
         <thead>
           <tr className="border-b border-gray-100 bg-gray-50/70">
             <th className="px-5 py-3 text-[10px] font-bold uppercase tracking-[0.12em] text-gray-400">
@@ -1868,26 +2369,42 @@ function AccountTable({
           {accounts.map((account) => (
             <tr
               key={`${account.type}-${account.id}`}
-              className="group transition hover:bg-[#800000]/[0.018]"
+              className={`group transition ${
+                !account.isActive
+                  ? "bg-gray-50/60 opacity-75"
+                  : "hover:bg-[#800000]/[0.018]"
+              }`}
             >
               <td className="px-5 py-4">
                 <div className="flex items-center gap-3">
                   <div
                     className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${
                       account.type === "Lab-in-Charge"
-                        ? "bg-[#800000]/5 text-[#800000]"
+                        ? account.isActive
+                          ? "bg-[#800000]/5 text-[#800000]"
+                          : "bg-gray-100 text-gray-400"
                         : "bg-blue-50 text-blue-600"
                     }`}
                   >
                     {account.type === "Lab-in-Charge" ? (
-                      <ShieldCheck className="h-4 w-4" />
+                      account.isActive ? (
+                        <ShieldCheck className="h-4 w-4" />
+                      ) : (
+                        <UserX className="h-4 w-4" />
+                      )
                     ) : (
                       <UserCog className="h-4 w-4" />
                     )}
                   </div>
 
                   <div className="min-w-0">
-                    <p className="truncate text-sm font-semibold text-gray-800">
+                    <p
+                      className={`truncate text-sm font-semibold ${
+                        account.isActive
+                          ? "text-gray-800"
+                          : "text-gray-500"
+                      }`}
+                    >
                       {account.name}
                     </p>
 
@@ -1925,7 +2442,10 @@ function AccountTable({
               </td>
 
               <td className="px-4 py-4">
-                <StatusBadge verified={account.verified} />
+                <StatusBadge
+                  verified={account.verified}
+                  isActive={account.isActive}
+                />
               </td>
 
               <td className="px-5 py-4 text-right">
@@ -1987,14 +2507,25 @@ function AccountTypeBadge({
 
 function StatusBadge({
   verified,
+  isActive,
 }: {
   verified: boolean;
+  isActive: boolean;
 }) {
+  if (!isActive) {
+    return (
+      <span className="inline-flex items-center gap-1.5 rounded-full bg-gray-100 px-2.5 py-1 text-[10px] font-semibold text-gray-500">
+        <UserX className="h-3 w-3" />
+        Disabled
+      </span>
+    );
+  }
+
   if (verified) {
     return (
       <span className="inline-flex items-center gap-1.5 rounded-full bg-green-50 px-2.5 py-1 text-[10px] font-semibold text-green-600">
         <CheckCircle2 className="h-3 w-3" />
-        Verified
+        Active
       </span>
     );
   }
@@ -2004,6 +2535,30 @@ function StatusBadge({
       <Activity className="h-3 w-3" />
       Pending
     </span>
+  );
+}
+
+// ============================================================
+// DETAIL ITEM
+// ============================================================
+
+function DetailItem({
+  label,
+  value,
+}: {
+  label: string;
+  value: string;
+}) {
+  return (
+    <div className="rounded-xl border border-gray-100 bg-gray-50/50 p-3.5">
+      <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400">
+        {label}
+      </p>
+
+      <p className="mt-1.5 break-words text-sm font-medium text-gray-700">
+        {value || "—"}
+      </p>
+    </div>
   );
 }
 
@@ -2083,195 +2638,6 @@ function StudentDevelopmentState() {
 }
 
 // ============================================================
-// ACCOUNT DETAILS MODAL
-// ============================================================
-
-function AccountDetailsModal({
-  account,
-  formatDate,
-  onClose,
-  onEdit,
-}: {
-  account: AccountRow;
-  formatDate: (date?: string) => string;
-  onClose: () => void;
-  onEdit: () => void;
-}) {
-  const canEdit = account.type === "Lab-in-Charge";
-
-  return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 px-4 py-6 backdrop-blur-[2px]">
-      <button
-        type="button"
-        aria-label="Close account details"
-        onClick={onClose}
-        className="absolute inset-0 cursor-default"
-      />
-
-      <div className="relative z-10 w-full max-w-lg overflow-hidden rounded-2xl border border-[#800000]/10 bg-white shadow-2xl">
-        {/* HEADER */}
-
-        <div className="border-b border-gray-100 bg-[#800000]/[0.025] px-5 py-4">
-          <div className="flex items-center justify-between gap-4">
-            <div className="flex items-center gap-3">
-              <div
-                className={`flex h-11 w-11 items-center justify-center rounded-xl ${
-                  account.type === "Lab-in-Charge"
-                    ? "bg-[#800000]/5 text-[#800000]"
-                    : "bg-blue-50 text-blue-600"
-                }`}
-              >
-                {account.type === "Lab-in-Charge" ? (
-                  <ShieldCheck className="h-5 w-5" />
-                ) : (
-                  <UserCog className="h-5 w-5" />
-                )}
-              </div>
-
-              <div>
-                <p className="text-xs font-medium uppercase tracking-wider text-gray-400">
-                  Account Details
-                </p>
-
-                <h3 className="mt-0.5 text-base font-bold text-[#800000]">
-                  {account.name}
-                </h3>
-              </div>
-            </div>
-
-            <button
-              type="button"
-              onClick={onClose}
-              className="rounded-lg p-2 text-gray-400 transition hover:bg-gray-100 hover:text-gray-700"
-            >
-              <X className="h-5 w-5" />
-            </button>
-          </div>
-        </div>
-
-        {/* CONTENT */}
-
-        <div className="max-h-[70vh] overflow-y-auto p-5">
-          <div className="mb-5">
-            <AccountTypeBadge type={account.type} />
-          </div>
-
-          <div className="grid gap-3 sm:grid-cols-2">
-            <DetailItem
-              label="Full Name"
-              value={account.name}
-            />
-
-            <DetailItem
-              label="Account Type"
-              value={account.type}
-            />
-
-            <DetailItem
-              label="Employee / Student ID"
-              value={account.identifier}
-            />
-
-            <DetailItem
-              label="Department"
-              value={account.department}
-            />
-
-            <DetailItem
-              label="Email"
-              value={account.email}
-            />
-
-            <DetailItem
-              label="Contact Number"
-              value={account.contactNumber}
-            />
-
-            <DetailItem
-              label="Email Status"
-              value={
-                account.verified
-                  ? "Verified"
-                  : "Not verified"
-              }
-            />
-
-            <DetailItem
-              label="Registered"
-              value={formatDate(account.createdAt)}
-            />
-          </div>
-
-          <div className="mt-5 rounded-xl border border-[#800000]/10 bg-[#800000]/[0.025] p-4">
-            <div className="flex items-start gap-3">
-              <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-[#800000]" />
-
-              <div>
-                <p className="text-xs font-semibold text-[#800000]">
-                  Security Information
-                </p>
-
-                <p className="mt-1 text-[11px] leading-5 text-gray-500">
-                  Passwords and authentication credentials are
-                  hidden and are never displayed in this interface.
-                </p>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* FOOTER */}
-
-        <div className="flex flex-col-reverse gap-2 border-t border-gray-100 bg-gray-50/50 px-5 py-4 sm:flex-row sm:justify-end">
-          <button
-            type="button"
-            onClick={onClose}
-            className="rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-600 transition hover:bg-gray-100"
-          >
-            Close
-          </button>
-
-          {canEdit && (
-            <button
-              type="button"
-              onClick={onEdit}
-              className="inline-flex items-center justify-center gap-2 rounded-lg bg-[#800000] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#650000]"
-            >
-              <Edit3 className="h-4 w-4" />
-              Edit LIC
-            </button>
-          )}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ============================================================
-// DETAIL ITEM
-// ============================================================
-
-function DetailItem({
-  label,
-  value,
-}: {
-  label: string;
-  value: string;
-}) {
-  return (
-    <div className="rounded-xl border border-gray-100 bg-gray-50/50 p-3.5">
-      <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400">
-        {label}
-      </p>
-
-      <p className="mt-1.5 break-words text-sm font-medium text-gray-700">
-        {value || "—"}
-      </p>
-    </div>
-  );
-}
-
-// ============================================================
 // LOADING
 // ============================================================
 
@@ -2336,3 +2702,4 @@ function AccountManagementLoading() {
     </div>
   );
 }
+

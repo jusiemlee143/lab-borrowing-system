@@ -10,6 +10,7 @@ interface JwtPayload {
   userId: string;
   role: string;
   mustChangePassword?: boolean;
+  isActive?: boolean;
   iat?: number;
   exp?: number;
 }
@@ -44,8 +45,8 @@ export function proxy(request: NextRequest) {
   // ============================================================
   // GET THE CORRECT COOKIE
   //
-  // ADMIN  -> token
-  // LIC    -> licToken
+  // ADMIN -> token
+  // LIC   -> licToken
   // ============================================================
 
   let token: string | undefined;
@@ -72,7 +73,7 @@ export function proxy(request: NextRequest) {
     );
     console.log("==================================");
 
-    return redirectToLogin(request, pathname);
+    return redirectToLogin(request, pathname, "login-required");
   }
 
   // ============================================================
@@ -80,12 +81,18 @@ export function proxy(request: NextRequest) {
   // ============================================================
 
   try {
-    if (!process.env.JWT_SECRET) {
-      console.error("JWT_SECRET is not configured.");
+    // ==========================================================
+    // CHECK JWT SECRET
+    // ==========================================================
 
-      return redirectToLogin(
+    if (!process.env.JWT_SECRET) {
+      console.error("PROXY: JWT_SECRET is not configured.");
+
+      return removeAuthCookieAndRedirect(
         request,
         pathname,
+        isAdminDashboard,
+        isLicDashboard,
         "session-expired"
       );
     }
@@ -104,11 +111,13 @@ export function proxy(request: NextRequest) {
     // ==========================================================
 
     if (typeof verified === "string") {
-      console.error("JWT payload is invalid.");
+      console.error("PROXY: JWT payload is invalid.");
 
-      return redirectToLogin(
+      return removeAuthCookieAndRedirect(
         request,
         pathname,
+        isAdminDashboard,
+        isLicDashboard,
         "session-expired"
       );
     }
@@ -120,14 +129,22 @@ export function proxy(request: NextRequest) {
     // ==========================================================
 
     if (!decoded.userId || !decoded.role) {
-      console.error("JWT is missing userId or role.");
+      console.error(
+        "PROXY: JWT is missing userId or role."
+      );
 
-      return redirectToLogin(
+      return removeAuthCookieAndRedirect(
         request,
         pathname,
+        isAdminDashboard,
+        isLicDashboard,
         "session-expired"
       );
     }
+
+    // ==========================================================
+    // LOG AUTHENTICATION
+    // ==========================================================
 
     console.log("==================================");
     console.log("PROXY AUTHENTICATION");
@@ -138,6 +155,11 @@ export function proxy(request: NextRequest) {
     );
     console.log("User ID:", decoded.userId);
     console.log("Role:", decoded.role);
+    console.log("isActive:", decoded.isActive);
+    console.log(
+      "mustChangePassword:",
+      decoded.mustChangePassword
+    );
     console.log("==================================");
 
     // ==========================================================
@@ -145,17 +167,31 @@ export function proxy(request: NextRequest) {
     // ==========================================================
 
     if (isAdminDashboard) {
+      // --------------------------------------------------------
+      // ROLE CHECK
+      // --------------------------------------------------------
+
       if (decoded.role !== "admin") {
         console.log(
           "PROXY: User is not authorized for ADMIN dashboard."
         );
 
-        return redirectToLogin(
+        return removeAuthCookieAndRedirect(
           request,
           pathname,
+          true,
+          false,
           "unauthorized"
         );
       }
+
+      // --------------------------------------------------------
+      // ADMIN ACCESS GRANTED
+      // --------------------------------------------------------
+
+      console.log("PROXY: ADMIN ACCESS GRANTED");
+
+      return NextResponse.next();
     }
 
     // ==========================================================
@@ -163,52 +199,121 @@ export function proxy(request: NextRequest) {
     // ==========================================================
 
     if (isLicDashboard) {
+      // --------------------------------------------------------
+      // ROLE CHECK
+      // --------------------------------------------------------
+
       if (decoded.role !== "lic") {
         console.log(
           "PROXY: User is not authorized for LIC dashboard."
         );
 
-        return redirectToLogin(
+        return removeAuthCookieAndRedirect(
           request,
           pathname,
+          false,
+          true,
           "unauthorized"
         );
       }
+
+      // --------------------------------------------------------
+      // ACCOUNT STATUS CHECK
+      // --------------------------------------------------------
+      //
+      // This protects tokens that were created with:
+      //
+      // isActive: false
+      //
+      // However, if an account is disabled AFTER the token
+      // was created, the old JWT may still contain true.
+      //
+      // API routes should therefore also verify the current
+      // account status from MongoDB.
+      // --------------------------------------------------------
+
+      if (decoded.isActive === false) {
+        console.log(
+          "PROXY: LIC ACCOUNT IS DISABLED."
+        );
+
+        return removeAuthCookieAndRedirect(
+          request,
+          pathname,
+          false,
+          true,
+          "account-disabled"
+        );
+      }
+
+      // --------------------------------------------------------
+      // LIC ACCESS GRANTED
+      // --------------------------------------------------------
+
+      console.log("PROXY: LIC ACCESS GRANTED");
+
+      return NextResponse.next();
     }
 
     // ==========================================================
-    // TOKEN VALID
+    // FALLBACK
     // ==========================================================
-
-    console.log("PROXY: ACCESS GRANTED");
 
     return NextResponse.next();
   } catch (error) {
+    // ==========================================================
+    // JWT VERIFICATION FAILED
+    // ==========================================================
+
     console.error("==================================");
     console.error("JWT VERIFICATION FAILED");
     console.error(error);
     console.error("==================================");
 
-    // ==========================================================
-    // REMOVE THE CORRECT INVALID COOKIE
-    // ==========================================================
-
-    const response = redirectToLogin(
+    return removeAuthCookieAndRedirect(
       request,
       pathname,
+      isAdminDashboard,
+      isLicDashboard,
       "session-expired"
     );
-
-    if (isAdminDashboard) {
-      response.cookies.delete("token");
-    }
-
-    if (isLicDashboard) {
-      response.cookies.delete("licToken");
-    }
-
-    return response;
   }
+}
+
+// ============================================================
+// REMOVE AUTH COOKIE + REDIRECT
+// ============================================================
+
+function removeAuthCookieAndRedirect(
+  request: NextRequest,
+  pathname: string,
+  isAdminDashboard: boolean,
+  isLicDashboard: boolean,
+  error: string
+) {
+  const response = redirectToLogin(
+    request,
+    pathname,
+    error
+  );
+
+  // ==========================================================
+  // REMOVE ADMIN COOKIE
+  // ==========================================================
+
+  if (isAdminDashboard) {
+    response.cookies.delete("token");
+  }
+
+  // ==========================================================
+  // REMOVE LIC COOKIE
+  // ==========================================================
+
+  if (isLicDashboard) {
+    response.cookies.delete("licToken");
+  }
+
+  return response;
 }
 
 // ============================================================
@@ -220,21 +325,41 @@ function redirectToLogin(
   pathname: string,
   error?: string
 ) {
+  // ==========================================================
+  // DEFAULT LOGIN
+  // ==========================================================
+
   let loginPath = "/admin";
+
+  // ==========================================================
+  // LIC LOGIN
+  // ==========================================================
 
   if (pathname.startsWith("/lab-in-charge")) {
     loginPath = "/lab-in-charge";
   }
+
+  // ==========================================================
+  // CREATE LOGIN URL
+  // ==========================================================
 
   const loginUrl = new URL(
     loginPath,
     request.url
   );
 
+  // ==========================================================
+  // ERROR
+  // ==========================================================
+
   loginUrl.searchParams.set(
     "error",
     error || "login-required"
   );
+
+  // ==========================================================
+  // ORIGINAL PAGE
+  // ==========================================================
 
   loginUrl.searchParams.set(
     "from",
@@ -254,3 +379,4 @@ export const config = {
     "/lab-in-charge/dashboard/:path*",
   ],
 };
+

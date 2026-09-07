@@ -44,12 +44,16 @@ function LoginPageContent() {
   const [loading, setLoading] = useState(false)
 
   // ==========================================================
-  // REDIRECT NOTIFICATIONS
+  // REDIRECT / AUTHENTICATION NOTIFICATIONS
   // ==========================================================
 
   useEffect(() => {
     const error = searchParams?.get("error")
     const from = searchParams?.get("from")
+
+    // --------------------------------------------------------
+    // LOGIN REQUIRED
+    // --------------------------------------------------------
 
     if (error === "login-required") {
       let page = "this page"
@@ -67,10 +71,64 @@ function LoginPageContent() {
       )
     }
 
+    // --------------------------------------------------------
+    // SESSION EXPIRED
+    // --------------------------------------------------------
+
     if (error === "session-expired") {
       toast.error(
         "Your session expired. Please login again."
       )
+
+      // Remove any stale LIC session information
+      try {
+        localStorage.removeItem("licUser")
+      } catch (storageError) {
+        console.error(
+          "Unable to clear LIC localStorage:",
+          storageError
+        )
+      }
+    }
+
+    // --------------------------------------------------------
+    // ACCOUNT DISABLED
+    // --------------------------------------------------------
+
+    if (error === "account-disabled") {
+      toast.error(
+        "Your LIC account has been disabled. Please contact the administrator."
+      )
+
+      // Remove stale session information
+      try {
+        localStorage.removeItem("licUser")
+      } catch (storageError) {
+        console.error(
+          "Unable to clear LIC localStorage:",
+          storageError
+        )
+      }
+    }
+
+    // --------------------------------------------------------
+    // UNAUTHORIZED
+    // --------------------------------------------------------
+
+    if (error === "unauthorized") {
+      toast.error(
+        "You are not authorized to access the Lab-In-Charge Dashboard."
+      )
+
+      // Remove stale session information
+      try {
+        localStorage.removeItem("licUser")
+      } catch (storageError) {
+        console.error(
+          "Unable to clear LIC localStorage:",
+          storageError
+        )
+      }
     }
   }, [searchParams])
 
@@ -91,40 +149,161 @@ function LoginPageContent() {
   ) => {
     e.preventDefault()
 
+    // Prevent duplicate submissions
     if (loading) return
 
-    const cleanEmail = email.trim()
-    const cleanPassword = password.trim()
+    // --------------------------------------------------------
+    // CLEAN EMAIL ONLY
+    //
+    // Do NOT trim the password because spaces can technically
+    // be part of a password.
+    // --------------------------------------------------------
 
-    if (!cleanEmail || !cleanPassword) {
-      toast.error("Please enter your email and password.")
+    const cleanEmail = email.trim()
+
+    const enteredPassword = password
+
+    // --------------------------------------------------------
+    // VALIDATE INPUT
+    // --------------------------------------------------------
+
+    if (!cleanEmail || !enteredPassword) {
+      toast.error(
+        "Please enter your email and password."
+      )
+
       return
     }
+
+    // --------------------------------------------------------
+    // START LOADING
+    // --------------------------------------------------------
 
     setLoading(true)
 
     try {
-      const res = await fetch("/api/auth/lic-login", {
-        method: "POST",
+      // ======================================================
+      // CLEAR OLD LOCAL SESSION
+      // ======================================================
 
-        headers: {
-          "Content-Type": "application/json",
-        },
+      try {
+        localStorage.removeItem("licUser")
+      } catch (storageError) {
+        console.error(
+          "Unable to clear previous LIC session:",
+          storageError
+        )
+      }
 
-        body: JSON.stringify({
-          email: cleanEmail,
-          password: cleanPassword,
-        }),
-      })
+      // ======================================================
+      // SEND LOGIN REQUEST
+      // ======================================================
 
-      const data = await res.json()
+      const res = await fetch(
+        "/api/auth/lic-login",
+        {
+          method: "POST",
 
-      console.log("LOGIN RESPONSE:", data)
+          headers: {
+            "Content-Type": "application/json",
+          },
+
+          body: JSON.stringify({
+            email: cleanEmail,
+            password: enteredPassword,
+          }),
+        }
+      )
+
+      // ======================================================
+      // READ RESPONSE
+      // ======================================================
+
+      let data: any = {}
+
+      try {
+        data = await res.json()
+      } catch (jsonError) {
+        console.error(
+          "Unable to parse login response:",
+          jsonError
+        )
+
+        data = {}
+      }
+
+      console.log(
+        "LIC LOGIN RESPONSE:",
+        data
+      )
+
+      // ======================================================
+      // ACCOUNT DISABLED
+      // ======================================================
+
+      if (
+        res.status === 403 &&
+        data?.accountDisabled === true
+      ) {
+        toast.error(
+          data?.message ||
+            "Your LIC account has been disabled. Please contact the administrator."
+        )
+
+        setPassword("")
+
+        return
+      }
+
+      // ======================================================
+      // OTHER LOGIN ERRORS
+      // ======================================================
 
       if (!res.ok) {
         toast.error(
-          data?.message || "Invalid email or password."
+          data?.message ||
+            "Invalid email or password."
         )
+
+        return
+      }
+
+      // ======================================================
+      // VERIFY SUCCESS RESPONSE
+      // ======================================================
+
+      if (!data?.userId || data?.role !== "lic") {
+        console.error(
+          "Invalid LIC login response:",
+          data
+        )
+
+        toast.error(
+          "Invalid login response. Please try again."
+        )
+
+        return
+      }
+
+      // ======================================================
+      // VERIFY ACCOUNT IS ACTIVE
+      // ======================================================
+      //
+      // The backend already checks this.
+      // This additional check prevents an unexpected response
+      // from being treated as a successful active account.
+      //
+      // We only reject explicitly false.
+      // This allows compatibility with older accounts that may
+      // not yet have the isActive field.
+      // ======================================================
+
+      if (data.isActive === false) {
+        toast.error(
+          "Your LIC account has been disabled. Please contact the administrator."
+        )
+
+        setPassword("")
 
         return
       }
@@ -133,19 +312,43 @@ function LoginPageContent() {
       // SAVE LIC SESSION
       // ======================================================
 
-      localStorage.setItem(
-        "licUser",
-        JSON.stringify({
-          userId: data.userId,
-          fullName: data.fullName,
-          email: data.email,
-          mustChangePassword: data.mustChangePassword,
-          role: data.role,
-        })
-      )
+      const licUser = {
+        userId: data.userId,
+        fullName: data.fullName,
+        email: data.email,
+        mustChangePassword:
+          data.mustChangePassword,
+        role: data.role,
+        isActive:
+          data.isActive !== false,
+      }
+
+      try {
+        localStorage.setItem(
+          "licUser",
+          JSON.stringify(licUser)
+        )
+      } catch (storageError) {
+        console.error(
+          "Unable to save LIC session:",
+          storageError
+        )
+
+        toast.error(
+          "Unable to save your login session. Please try again."
+        )
+
+        return
+      }
+
+      // ======================================================
+      // SUCCESS MESSAGE
+      // ======================================================
 
       toast.success(
-        `Welcome, ${data.fullName || "Lab-In-Charge"}!`
+        `Welcome, ${
+          data.fullName || "Lab-In-Charge"
+        }!`
       )
 
       // ======================================================
@@ -153,17 +356,32 @@ function LoginPageContent() {
       // ======================================================
 
       if (data.mustChangePassword) {
-        router.push("/lab-in-charge/change-password")
+        router.push(
+          "/lab-in-charge/change-password"
+        )
       } else {
-        router.push("/lab-in-charge/dashboard")
+        router.push(
+          "/lab-in-charge/dashboard"
+        )
       }
     } catch (error) {
-      console.error("LOGIN ERROR:", error)
+      // ======================================================
+      // NETWORK / SERVER ERROR
+      // ======================================================
+
+      console.error(
+        "LIC LOGIN ERROR:",
+        error
+      )
 
       toast.error(
         "Unable to connect to the server. Please try again."
       )
     } finally {
+      // ======================================================
+      // STOP LOADING
+      // ======================================================
+
       setLoading(false)
     }
   }
@@ -265,6 +483,7 @@ function LoginPageContent() {
         type="button"
         variant="outline"
         onClick={handleExit}
+        disabled={loading}
         className="
           fixed
           right-5
@@ -280,6 +499,8 @@ function LoginPageContent() {
           backdrop-blur-md
           hover:bg-[#800000]
           hover:text-[#FFD700]
+          disabled:cursor-not-allowed
+          disabled:opacity-60
           sm:right-7
           sm:top-7
         "
@@ -906,3 +1127,4 @@ export default function LoginPage() {
     </Suspense>
   )
 }
+

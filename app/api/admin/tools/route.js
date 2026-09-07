@@ -1,10 +1,26 @@
+import { NextResponse } from "next/server";
 import connectDB from "@/models/utils/db";
 import Tool from "@/models/Tool";
-import { NextResponse } from "next/server";
 
 // ============================================================
-// GET ALL EQUIPMENT
-// GET /api/admin/tools
+// STATUS HELPER
+// ============================================================
+
+function getToolStatus(quantity) {
+  if (quantity <= 0) {
+    return "unavailable";
+  }
+
+  if (quantity <= 4) {
+    return "low stock";
+  }
+
+  return "available";
+}
+
+// ============================================================
+// GET
+// Fetch all tools
 // ============================================================
 
 export async function GET() {
@@ -12,12 +28,17 @@ export async function GET() {
     await connectDB();
 
     const tools = await Tool.find()
-      .sort({ name: 1 })
+      .sort({ createdAt: -1 })
       .lean();
 
-    return NextResponse.json(tools);
+    return NextResponse.json(tools, {
+      status: 200,
+    });
   } catch (error) {
-    console.error("GET /api/admin/tools error:", error);
+    console.error(
+      "ADMIN TOOLS GET ERROR:",
+      error
+    );
 
     return NextResponse.json(
       {
@@ -31,8 +52,8 @@ export async function GET() {
 }
 
 // ============================================================
-// ADD EQUIPMENT
-// POST /api/admin/tools
+// POST
+// Create a new tool
 // ============================================================
 
 export async function POST(request) {
@@ -55,7 +76,8 @@ export async function POST(request) {
     if (!name) {
       return NextResponse.json(
         {
-          message: "Equipment name is required.",
+          message:
+            "Equipment name is required.",
         },
         {
           status: 400,
@@ -63,11 +85,14 @@ export async function POST(request) {
       );
     }
 
-    if (!Number.isInteger(quantity) || quantity < 0) {
+    if (
+      !Number.isInteger(quantity) ||
+      quantity < 0
+    ) {
       return NextResponse.json(
         {
           message:
-            "Quantity must be a whole number greater than or equal to 0.",
+            "Quantity must be a valid non-negative integer.",
         },
         {
           status: 400,
@@ -76,20 +101,22 @@ export async function POST(request) {
     }
 
     // --------------------------------------------------------
-    // CHECK DUPLICATE NAME
+    // CHECK DUPLICATE EQUIPMENT
     // --------------------------------------------------------
 
-    const existingTool = await Tool.findOne({
-      name: {
-        $regex: `^${escapeRegex(name)}$`,
-        $options: "i",
-      },
-    });
+    const existingTool =
+      await Tool.findOne({
+        name: {
+          $regex: `^${escapeRegex(name)}$`,
+          $options: "i",
+        },
+      });
 
     if (existingTool) {
       return NextResponse.json(
         {
-          message: `"${name}" already exists in the inventory.`,
+          message:
+            "Equipment with this name already exists.",
         },
         {
           status: 409,
@@ -98,33 +125,35 @@ export async function POST(request) {
     }
 
     // --------------------------------------------------------
-    // DETERMINE STATUS
-    // --------------------------------------------------------
-
-    const status = getToolStatus(quantity);
-
-    // --------------------------------------------------------
     // CREATE TOOL
     // --------------------------------------------------------
 
     const tool = await Tool.create({
       name,
       quantity,
-      status,
+      status: getToolStatus(quantity),
     });
 
     return NextResponse.json(
-      tool,
+      {
+        message:
+          "Equipment created successfully.",
+        tool,
+      },
       {
         status: 201,
       }
     );
   } catch (error) {
-    console.error("POST /api/admin/tools error:", error);
+    console.error(
+      "ADMIN TOOLS POST ERROR:",
+      error
+    );
 
     return NextResponse.json(
       {
-        message: "Failed to create equipment.",
+        message:
+          "Failed to create equipment.",
       },
       {
         status: 500,
@@ -134,8 +163,8 @@ export async function POST(request) {
 }
 
 // ============================================================
-// UPDATE EQUIPMENT
-// PATCH /api/admin/tools
+// PATCH
+// Update an existing tool
 // ============================================================
 
 export async function PATCH(request) {
@@ -163,7 +192,8 @@ export async function PATCH(request) {
     if (!id) {
       return NextResponse.json(
         {
-          message: "Equipment ID is required.",
+          message:
+            "Equipment ID is required.",
         },
         {
           status: 400,
@@ -178,7 +208,8 @@ export async function PATCH(request) {
     if (!name) {
       return NextResponse.json(
         {
-          message: "Equipment name is required.",
+          message:
+            "Equipment name is required.",
         },
         {
           status: 400,
@@ -190,11 +221,14 @@ export async function PATCH(request) {
     // VALIDATE QUANTITY
     // --------------------------------------------------------
 
-    if (!Number.isInteger(quantity) || quantity < 0) {
+    if (
+      !Number.isInteger(quantity) ||
+      quantity < 0
+    ) {
       return NextResponse.json(
         {
           message:
-            "Quantity must be a whole number greater than or equal to 0.",
+            "Quantity must be a valid non-negative integer.",
         },
         {
           status: 400,
@@ -203,15 +237,17 @@ export async function PATCH(request) {
     }
 
     // --------------------------------------------------------
-    // FIND CURRENT EQUIPMENT
+    // FIND TOOL
     // --------------------------------------------------------
 
-    const existingTool = await Tool.findById(id);
+    const existingTool =
+      await Tool.findById(id);
 
     if (!existingTool) {
       return NextResponse.json(
         {
-          message: "Equipment not found.",
+          message:
+            "Equipment not found.",
         },
         {
           status: 404,
@@ -221,22 +257,26 @@ export async function PATCH(request) {
 
     // --------------------------------------------------------
     // CHECK DUPLICATE NAME
+    // Don't allow another tool to use the
+    // same equipment name.
     // --------------------------------------------------------
 
-    const duplicateTool = await Tool.findOne({
-      _id: {
-        $ne: id,
-      },
-      name: {
-        $regex: `^${escapeRegex(name)}$`,
-        $options: "i",
-      },
-    });
+    const duplicateTool =
+      await Tool.findOne({
+        _id: {
+          $ne: id,
+        },
+        name: {
+          $regex: `^${escapeRegex(name)}$`,
+          $options: "i",
+        },
+      });
 
     if (duplicateTool) {
       return NextResponse.json(
         {
-          message: `"${name}" is already used by another equipment.`,
+          message:
+            "Another equipment already uses this name.",
         },
         {
           status: 409,
@@ -245,28 +285,36 @@ export async function PATCH(request) {
     }
 
     // --------------------------------------------------------
-    // DETERMINE NEW STATUS
-    // --------------------------------------------------------
-
-    const status = getToolStatus(quantity);
-
-    // --------------------------------------------------------
     // UPDATE
     // --------------------------------------------------------
 
     existingTool.name = name;
     existingTool.quantity = quantity;
-    existingTool.status = status;
+    existingTool.status =
+      getToolStatus(quantity);
 
     await existingTool.save();
 
-    return NextResponse.json(existingTool);
+    return NextResponse.json(
+      {
+        message:
+          "Equipment updated successfully.",
+        tool: existingTool,
+      },
+      {
+        status: 200,
+      }
+    );
   } catch (error) {
-    console.error("PATCH /api/admin/tools error:", error);
+    console.error(
+      "ADMIN TOOLS PATCH ERROR:",
+      error
+    );
 
     return NextResponse.json(
       {
-        message: "Failed to update equipment.",
+        message:
+          "Failed to update equipment.",
       },
       {
         status: 500,
@@ -276,8 +324,8 @@ export async function PATCH(request) {
 }
 
 // ============================================================
-// DELETE EQUIPMENT
-// DELETE /api/admin/tools?id=TOOL_ID
+// DELETE
+// Delete an existing tool
 // ============================================================
 
 export async function DELETE(request) {
@@ -287,12 +335,18 @@ export async function DELETE(request) {
     const { searchParams } =
       new URL(request.url);
 
-    const id = searchParams.get("id");
+    const id =
+      searchParams.get("id");
+
+    // --------------------------------------------------------
+    // VALIDATE ID
+    // --------------------------------------------------------
 
     if (!id) {
       return NextResponse.json(
         {
-          message: "Equipment ID is required.",
+          message:
+            "Equipment ID is required.",
         },
         {
           status: 400,
@@ -300,12 +354,18 @@ export async function DELETE(request) {
       );
     }
 
-    const tool = await Tool.findById(id);
+    // --------------------------------------------------------
+    // FIND TOOL
+    // --------------------------------------------------------
+
+    const tool =
+      await Tool.findById(id);
 
     if (!tool) {
       return NextResponse.json(
         {
-          message: "Equipment not found.",
+          message:
+            "Equipment not found.",
         },
         {
           status: 404,
@@ -313,17 +373,31 @@ export async function DELETE(request) {
       );
     }
 
-    await Tool.findByIdAndDelete(id);
+    // --------------------------------------------------------
+    // DELETE
+    // --------------------------------------------------------
 
-    return NextResponse.json({
-      message: "Equipment deleted successfully.",
-    });
-  } catch (error) {
-    console.error("DELETE /api/admin/tools error:", error);
+    await Tool.findByIdAndDelete(id);
 
     return NextResponse.json(
       {
-        message: "Failed to delete equipment.",
+        message:
+          "Equipment deleted successfully.",
+      },
+      {
+        status: 200,
+      }
+    );
+  } catch (error) {
+    console.error(
+      "ADMIN TOOLS DELETE ERROR:",
+      error
+    );
+
+    return NextResponse.json(
+      {
+        message:
+          "Failed to delete equipment.",
       },
       {
         status: 500,
@@ -333,23 +407,8 @@ export async function DELETE(request) {
 }
 
 // ============================================================
-// HELPER: DETERMINE TOOL STATUS
-// ============================================================
-
-function getToolStatus(quantity) {
-  if (quantity === 0) {
-    return "unavailable";
-  }
-
-  if (quantity < 5) {
-    return "low stock";
-  }
-
-  return "available";
-}
-
-// ============================================================
-// HELPER: ESCAPE REGEX
+// ESCAPE REGEX
+// Used for safe case-insensitive name matching.
 // ============================================================
 
 function escapeRegex(value) {

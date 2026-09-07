@@ -1,10 +1,30 @@
-// models/Teacher.ts
-import mongoose from "mongoose"
+// models/Teacher.js
 
-const teacherSchema = new mongoose.Schema({
-  name: { type: String, required: true },
-  email: { type: String, required: true, unique: true },
-})
+import mongoose from "mongoose";
 
-const Teacher = mongoose.models.Teacher || mongoose.model("Teacher", teacherSchema)
-export default Teacher
+const teacherSchema = new mongoose.Schema(
+  {
+    name: {
+      type: String,
+      required: true,
+      trim: true,
+    },
+
+    email: {
+      type: String,
+      required: true,
+      unique: true,
+      lowercase: true,
+      trim: true,
+    },
+  },
+  {
+    timestamps: true,
+  }
+);
+
+const Teacher =
+  mongoose.models.Teacher ||
+  mongoose.model("Teacher", teacherSchema);
+
+export default Teacher;

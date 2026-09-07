@@ -10,38 +10,108 @@ export async function POST(req) {
 
     console.log("CHANGE PASSWORD BODY:", body);
 
-    // ✅ validation
+    // =====================================================
+    // VALIDATION
+    // =====================================================
+
     if (!userId || !newPassword) {
       return new Response(
-        JSON.stringify({ message: "Missing userId or newPassword" }),
-        { status: 400 }
+        JSON.stringify({
+          message: "Missing userId or newPassword",
+        }),
+        {
+          status: 400,
+          headers: {
+            "Content-Type": "application/json",
+          },
+        }
       );
     }
+
+    // =====================================================
+    // FIND USER
+    // =====================================================
 
     const user = await User.findById(userId);
 
     if (!user) {
       return new Response(
-        JSON.stringify({ message: "User not found" }),
-        { status: 404 }
+        JSON.stringify({
+          message: "User not found",
+        }),
+        {
+          status: 404,
+          headers: {
+            "Content-Type": "application/json",
+          },
+        }
       );
     }
 
-    // ✅ assign new password directly, let the model hash it
+    // =====================================================
+    // MAKE SURE THIS IS A LIC ACCOUNT
+    // =====================================================
+
+    if (user.role !== "lic") {
+      return new Response(
+        JSON.stringify({
+          message: "Only Lab-In-Charge accounts can use this endpoint.",
+        }),
+        {
+          status: 403,
+          headers: {
+            "Content-Type": "application/json",
+          },
+        }
+      );
+    }
+
+    // =====================================================
+    // CHANGE PASSWORD
+    // =====================================================
+
     user.password = newPassword;
+
+    // LIC has completed first-time account setup
     user.mustChangePassword = false;
+
+    // Account is now verified
+    user.emailVerified = true;
 
     await user.save();
 
+    // =====================================================
+    // RESPONSE
+    // =====================================================
+
     return new Response(
-      JSON.stringify({ message: "Password changed successfully" }),
-      { status: 200 }
+      JSON.stringify({
+        message: "Password changed successfully",
+        verified: true,
+      }),
+      {
+        status: 200,
+        headers: {
+          "Content-Type": "application/json",
+        },
+      }
     );
   } catch (err) {
-    console.error("Change password error:", err);
+    console.error(
+      "Change password error:",
+      err
+    );
+
     return new Response(
-      JSON.stringify({ message: "Server error" }),
-      { status: 500 }
+      JSON.stringify({
+        message: "Server error",
+      }),
+      {
+        status: 500,
+        headers: {
+          "Content-Type": "application/json",
+        },
+      }
     );
   }
 }
